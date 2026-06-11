@@ -431,6 +431,9 @@ function getTimeCategory(startUtc, endUtc, timezone) {
   return "daytime";
 }
 
+// ─── SPEAKER VIEW STATE ───────────────────────────────────────────────────────
+let inSpeakerView = false;
+
 // ─── SESSION PANEL HELPERS ────────────────────────────────────────────────────
 function esc(str) {
   return String(str || "")
@@ -438,6 +441,176 @@ function esc(str) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function speakerSlug(name) {
+  return name.toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function buildSpeakerIndex() {
+  if (typeof sessionsByBlock === "undefined") return [];
+  const map = new Map();
+  for (const [blockKey, sessions] of Object.entries(sessionsByBlock)) {
+    for (const s of sessions) {
+      for (const sp of (s.speakers || [])) {
+        const key = speakerSlug(sp.name);
+        if (!map.has(key)) {
+          map.set(key, { ...sp, sessions: [] });
+        }
+        const entry = map.get(key);
+        // Prefer richer data
+        if (!entry.bio && sp.bio) entry.bio = sp.bio;
+        if (!entry.photo && sp.photo) entry.photo = sp.photo;
+        if (!entry.title && sp.title) entry.title = sp.title;
+        if (!entry.org && sp.org) entry.org = sp.org;
+        // Avoid duplicate sessions
+        if (!entry.sessions.find(x => x.code === s.code)) {
+          entry.sessions.push({ code: s.code, name: s.name, blockKey });
+        }
+      }
+    }
+  }
+  return [...map.values()].sort((a, b) => {
+    const aLast = a.name.trim().split(" ").pop().toLowerCase();
+    const bLast = b.name.trim().split(" ").pop().toLowerCase();
+    return aLast.localeCompare(bLast);
+  });
+}
+
+function renderSpeakerView() {
+  const speakers = buildSpeakerIndex();
+  const grid = document.getElementById("speakerGrid");
+
+  const cards = speakers.map(sp => {
+    const slug = speakerSlug(sp.name);
+    const initials = sp.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+    const avatar = sp.photo
+      ? `<img class="spAvatar" src="${esc(sp.photo)}" alt="${esc(sp.name)}" loading="lazy">`
+      : `<div class="spAvatarInitials">${initials}</div>`;
+    const popupAvatar = sp.photo
+      ? `<img class="spPopupPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}" loading="lazy">`
+      : `<div class="spPopupInitials">${initials}</div>`;
+
+    const sessionTags = sp.sessions.map(sess =>
+      `<button class="spPopupSession" onclick="navigateToSession('${esc(sess.blockKey)}','${esc(sess.code)}')">${esc(sess.name)}</button>`
+    ).join("");
+
+    return `
+      <div class="spCard" id="sp-${slug}" tabindex="0">
+        ${avatar}
+        <div class="spCardName">${esc(sp.name)}</div>
+        ${sp.org ? `<div class="spCardOrg">${esc(sp.org)}</div>` : ""}
+        <div class="spPopup">
+          <div class="spPopupHeader">
+            ${popupAvatar}
+            <div>
+              <div class="spPopupName">${esc(sp.name)}</div>
+              ${sp.title ? `<div class="spPopupTitle">${esc(sp.title)}</div>` : ""}
+              ${sp.org ? `<div class="spPopupOrg">${esc(sp.org)}</div>` : ""}
+            </div>
+          </div>
+          ${sp.bio ? `<p class="spPopupBio">${esc(sp.bio)}</p>` : ""}
+          ${sp.sessions.length ? `<div class="spPopupSessionsLabel">Sessions</div>${sessionTags}` : ""}
+        </div>
+      </div>`;
+  }).join("");
+
+  grid.innerHTML = `
+    <div class="spGridHeader">${speakers.length} speakers — alphabetical by last name</div>
+    <div class="spCards">${cards}</div>
+  `;
+}
+
+function toggleSpeakerView() {
+  inSpeakerView = !inSpeakerView;
+  const agendaGrid = document.getElementById("agendaGrid");
+  const speakerGrid = document.getElementById("speakerGrid");
+  const btn = document.getElementById("speakerViewBtn");
+  const expandControls = document.getElementById("expandControls");
+  const skillNote = document.getElementById("skillNote");
+
+  if (inSpeakerView) {
+    agendaGrid.style.display = "none";
+    expandControls.style.visibility = "hidden";
+    skillNote.style.display = "none";
+    speakerGrid.style.display = "";
+    btn.classList.add("active");
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg> Session view`;
+    renderSpeakerView();
+  } else {
+    speakerGrid.style.display = "none";
+    agendaGrid.style.display = "";
+    expandControls.style.visibility = "";
+    btn.classList.remove("active");
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="19" cy="9" r="3"/><path d="M22 21v-1a3 3 0 0 0-3-3h-1"/></svg> Speaker view`;
+    // Re-show skillNote if on day1
+    const activeDay = document.querySelector(".dayBtn.active")?.dataset.day;
+    if (activeDay === "day1") skillNote.style.display = "";
+  }
+  queueWidgetHeightPost();
+}
+
+function navigateToSession(blockKey, sessionCode) {
+  // Find which day owns this block
+  const [blockDate, blockTime] = blockKey.split("|");
+  let targetDay = null;
+  for (const [day, blocks] of Object.entries(data)) {
+    for (const [sd, st] of blocks) {
+      if (sd === blockDate && st === blockTime) { targetDay = day; break; }
+    }
+    if (targetDay) break;
+  }
+  if (!targetDay) return;
+
+  // Switch out of speaker view
+  if (inSpeakerView) toggleSpeakerView();
+
+  // Switch to correct day tab
+  document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
+  document.querySelector(`.dayBtn[data-day="${targetDay}"]`).classList.add("active");
+  render(targetDay);
+
+  // Find and open the block, then highlight the session card
+  requestAnimationFrame(() => {
+    const wrap = document.querySelector(`.blockWrap[data-block="${blockKey}"]`);
+    if (!wrap) return;
+    openBlockEl = null;
+    togglePanel(wrap);
+    requestAnimationFrame(() => {
+      const card = wrap.querySelector(`.sessionCard[data-code="${sessionCode}"]`);
+      if (card) {
+        card.scrollIntoView({ behavior: "smooth", block: "center" });
+        card.classList.remove("highlighted");
+        void card.offsetWidth;
+        card.classList.add("highlighted");
+        setTimeout(() => card.classList.remove("highlighted"), 2800);
+      } else {
+        wrap.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    });
+  });
+}
+
+function navigateToSpeaker(name) {
+  if (!inSpeakerView) toggleSpeakerView();
+  const slug = speakerSlug(name);
+  const card = document.getElementById(`sp-${slug}`);
+  if (!card) return;
+  requestAnimationFrame(() => {
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.remove("highlighted");
+    void card.offsetWidth;
+    card.classList.add("highlighted");
+    // Show popup for a few seconds
+    card.classList.add("popup-open");
+    setTimeout(() => {
+      card.classList.remove("popup-open");
+      card.classList.remove("highlighted");
+    }, 4000);
+  });
 }
 
 function buildSessionsHTML(blockKey) {
@@ -449,7 +622,7 @@ function buildSessionsHTML(blockKey) {
       ${sessions.map(s => {
         const descId = `desc-${esc(s.code)}`;
         return `
-        <div class="sessionCard">
+        <div class="sessionCard" data-code="${esc(s.code)}">
           ${s.theme ? `<div class="sessionTheme">${esc(s.theme)}</div>` : ""}
           <div class="sessionCardTitle">${esc(s.name)}</div>
           ${s.description ? `<p class="sessionDesc" id="${descId}">${esc(s.description)}</p>
@@ -461,6 +634,7 @@ function buildSessionsHTML(blockKey) {
                 const avatar = sp.photo
                   ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
                   : `<div class="speakerInitials">${initials}</div>`;
+                const learnMore = `<button class="ttLearnMore" onclick="navigateToSpeaker('${esc(sp.name)}')">View speaker profile ↗</button>`;
                 return `
                 <div class="speakerChip" tabindex="0">
                   ${avatar}
@@ -468,7 +642,7 @@ function buildSessionsHTML(blockKey) {
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
-                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p></div>` : ""}
+                  <div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}${sp.bio ? `<p class="ttBio">${esc(sp.bio)}</p>` : ""}${learnMore}</div>
                 </div>`;
               }).join("")}
             </div>` : ""}
@@ -533,6 +707,9 @@ function render(day) {
   const selectedZone = timezoneSelect.value;
   grid.innerHTML     = "";
   openBlockEl        = null;
+  allExpanded        = false;
+  const toggleBtn = document.getElementById("toggleAllBtn");
+  if (toggleBtn) toggleBtn.textContent = "Expand all";
 
   const skillNote = document.getElementById("skillNote");
   skillNote.style.display = day === "day1" ? "" : "none";
@@ -566,6 +743,7 @@ function render(day) {
 
     const blockWrap = document.createElement("div");
     blockWrap.className = "blockWrap";
+    blockWrap.dataset.block = blockKey;
     blockWrap.innerHTML = `
       <div class="timeRow${hasSessions ? " timeRow--clickable" : ""}">
         <div class="timeLabel">${timeLabel}</div>
@@ -617,13 +795,15 @@ filterBtn.addEventListener("click", () => {
   render(activeDay);
 });
 
-document.getElementById("expandAllBtn").addEventListener("click", () => {
-  document.querySelectorAll(".blockWrap").forEach(bw => togglePanel(bw, true));
+let allExpanded = false;
+
+document.getElementById("toggleAllBtn").addEventListener("click", () => {
+  allExpanded = !allExpanded;
+  document.querySelectorAll(".blockWrap").forEach(bw => togglePanel(bw, allExpanded));
+  document.getElementById("toggleAllBtn").textContent = allExpanded ? "Collapse all" : "Expand all";
 });
 
-document.getElementById("collapseAllBtn").addEventListener("click", () => {
-  document.querySelectorAll(".blockWrap").forEach(bw => togglePanel(bw, false));
-});
+document.getElementById("speakerViewBtn").addEventListener("click", toggleSpeakerView);
 
 // ─── IFRAME HEIGHT LISTENERS ─────────────────────────────────────────────────
 window.addEventListener("load", queueWidgetHeightPost);

@@ -190,11 +190,19 @@ body {
   transform: translateY(-1px);
 }
 
-/* ── Expand / Collapse controls ───────────────────────────── */
+/* ── View controls bar ────────────────────────────────────── */
+.viewControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  gap: 10px;
+}
+
+/* ── Expand / Collapse toggle ─────────────────────────────── */
 .expandControls {
   display: flex;
   gap: 8px;
-  margin-bottom: 14px;
 }
 .expandBtn {
   border: none;
@@ -209,6 +217,28 @@ body {
   transition: all .2s ease;
 }
 .expandBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.10); }
+
+/* ── Speaker view button ──────────────────────────────────── */
+.speakerViewBtn {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 1.5px solid rgba(18,35,69,0.15);
+  padding: 7px 16px;
+  border-radius: 50px;
+  background: #ffffff;
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 700;
+  font-size: 0.78rem;
+  color: #122345;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.07);
+  transition: all .2s ease;
+  white-space: nowrap;
+}
+.speakerViewBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.10); border-color: #122345; }
+.speakerViewBtn.active { background: #122345; color: #fff; border-color: #122345; }
+.speakerViewBtn.active svg { stroke: #fff; }
 
 /* ── Skill note banner ────────────────────────────────────── */
 .skillNote {
@@ -477,14 +507,275 @@ body {
   font-weight: 500;
   color: rgba(18,35,69,0.68);
   line-height: 1.5;
-  margin: 0;
+  margin: 0 0 8px;
   display: -webkit-box;
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.ttLearnMore {
+  border: none;
+  background: none;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #187089;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transition: color .15s;
+}
+.ttLearnMore:hover { color: #122345; }
+
+/* ── Session card highlight (navigated from speaker view) ─── */
+@keyframes sessionCardPulse {
+  0%   { border-color: rgba(18,35,69,0.07); box-shadow: none; }
+  20%  { border-color: #bebe7b; box-shadow: 0 0 0 4px rgba(190,190,123,0.30); }
+  55%  { border-color: #bebe7b; box-shadow: 0 0 0 2px rgba(190,190,123,0.15); }
+  80%  { border-color: #bebe7b; box-shadow: 0 0 0 4px rgba(190,190,123,0.28); }
+  100% { border-color: rgba(18,35,69,0.07); box-shadow: none; }
+}
+.sessionCard.highlighted {
+  animation: sessionCardPulse 2.6s ease forwards;
+}
+
+/* ── Speaker grid ─────────────────────────────────────────── */
+#speakerGrid {
+  padding: 4px 0;
+}
+.spGridHeader {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: rgba(18,35,69,0.4);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.spCards {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+}
+
+/* ── Speaker card (small) ─────────────────────────────────── */
+.spCard {
+  background: #fff;
+  border-radius: 12px;
+  border: 1.5px solid rgba(18,35,69,0.07);
+  padding: 14px 10px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  text-align: center;
+  cursor: default;
+  position: relative;
+  transition: box-shadow .18s, border-color .18s, transform .18s;
+  overflow: visible;
+}
+.spCard:hover, .spCard:focus-within {
+  box-shadow: 0 6px 20px rgba(18,35,69,0.10);
+  border-color: rgba(18,35,69,0.15);
+  transform: translateY(-2px);
+  z-index: 10;
+}
+
+/* Speaker card highlight (navigated from session view) */
+@keyframes spCardPulse {
+  0%   { border-color: rgba(18,35,69,0.07); box-shadow: none; }
+  20%  { border-color: #187089; box-shadow: 0 0 0 4px rgba(24,112,137,0.25); }
+  55%  { border-color: #187089; box-shadow: 0 0 0 2px rgba(24,112,137,0.12); }
+  80%  { border-color: #187089; box-shadow: 0 0 0 4px rgba(24,112,137,0.22); }
+  100% { border-color: rgba(18,35,69,0.07); box-shadow: none; }
+}
+.spCard.highlighted {
+  animation: spCardPulse 2.8s ease forwards;
+}
+
+.spAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e8eaed;
+  background: #e8eaed;
+  flex-shrink: 0;
+}
+.spAvatarInitials {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #122345;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+.spCardName {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #122345;
+  line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  width: 100%;
+}
+.spCardOrg {
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: rgba(18,35,69,0.45);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+/* ── Speaker popup (hover card) ───────────────────────────── */
+.spPopup {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  width: 270px;
+  background: #fff;
+  border: 1.5px solid #bebe7b;
+  border-radius: 14px;
+  padding: 14px 16px;
+  box-shadow: 0 10px 32px rgba(18,35,69,0.18);
+  z-index: 500;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+  text-align: left;
+}
+.spCard:hover .spPopup,
+.spCard:focus-within .spPopup,
+.spCard.popup-open .spPopup {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(-50%) translateY(0);
+}
+.spPopupHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.spPopupPhoto {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #e8eaed;
+  background: #e8eaed;
+  flex-shrink: 0;
+}
+.spPopupInitials {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #122345;
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.spPopupName {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #122345;
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+.spPopupTitle {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(18,35,69,0.6);
+  line-height: 1.3;
+}
+.spPopupOrg {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #6b6b2a;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+.spPopupBio {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(18,35,69,0.68);
+  line-height: 1.5;
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.spPopupSessionsLabel {
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(18,35,69,0.4);
+  margin-bottom: 5px;
+}
+.spPopupSession {
+  display: block;
+  width: 100%;
+  background: #f4f6fa;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #122345;
+  text-align: left;
+  cursor: pointer;
+  transition: background .15s;
+  margin-bottom: 4px;
+  line-height: 1.3;
+}
+.spPopupSession:last-child { margin-bottom: 0; }
+.spPopupSession:hover { background: rgba(190,190,123,0.2); }
+
+@media (max-width: 900px) {
+  .spCards { grid-template-columns: repeat(4, 1fr); }
+}
+@media (max-width: 700px) {
+  .spCards { grid-template-columns: repeat(3, 1fr); }
+}
 
 @media (max-width: 700px) {
+  .timeRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .timeLabel {
+    padding-left: 4px;
+  }
+  .tzSelector {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .tzSelector select {
+    width: 100%;
+    max-width: 100%;
+  }
+}
   .timeRow {
     grid-template-columns: 1fr;
     gap: 6px;

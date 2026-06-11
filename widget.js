@@ -1,21 +1,445 @@
-const agendaItems = [
-  { time: '9:00 AM', title: 'Standup', subtitle: 'Team sync' },
-  { time: '10:30 AM', title: 'Design Review', subtitle: 'Widget mockups' },
-  { time: '1:00 PM', title: 'Lunch', subtitle: '' },
-  { time: '3:00 PM', title: 'Sprint Planning', subtitle: 'Q3 roadmap' },
-];
+// ─── ICONS ───────────────────────────────────────────────────────────────────
+const icons = {
+  workshop: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/7fa5436c0536426fa7e85842cf7aad5d.png",
+  strategy: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/bdcbe9d6fe544ef4a202b854ca33e3f6.png",
+  creative: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/3a8caa515267422f9438e166ed096908.png",
+  keynote: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/70e651e949504943907244bd4cfef35e.png",
+  skill:   "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/8230f92e454c40c49550e623915ee73e.png"
+};
+  let showFiltered = false;
 
-function renderAgenda(items) {
-  const list = document.getElementById('agenda-list');
-  list.innerHTML = items.map(item => `
-    <div class="agenda-item">
-      <span class="time">${item.time}</span>
-      <div class="details">
-        <div class="title">${item.title}</div>
-        ${item.subtitle ? `<div class="subtitle">${item.subtitle}</div>` : ''}
-      </div>
-    </div>
-  `).join('');
+
+// ─── SESSION DATA (all times in Eastern) ─────────────────────────────────────
+const data = {
+  day1: [
+    ["2026-10-06", "05:00", "2026-10-06", "08:30", "skill"],
+    ["2026-10-06", "09:00", "2026-10-06", "12:30", "skill"],
+    ["2026-10-06", "11:00", "2026-10-06", "14:30", "skill"],
+    ["2026-10-06", "13:00", "2026-10-06", "16:30", "skill"],
+    ["2026-10-06", "15:00", "2026-10-06", "18:30", "skill"],
+    ["2026-10-06", "17:00", "2026-10-06", "20:30", "skill"],
+    ["2026-10-06", "21:00", "2026-10-07", "00:30", "skill"]
+  ],
+  day2: [
+    ["2026-10-07", "05:00", "2026-10-07", "06:00", "workshop"],
+    ["2026-10-07", "06:30", "2026-10-07", "07:45", "workshop"],
+    ["2026-10-07", "08:00", "2026-10-07", "09:30", "strategy"],
+    ["2026-10-07", "09:45", "2026-10-07", "10:15", "creative"],
+    ["2026-10-07", "10:30", "2026-10-07", "11:00", "workshop"],
+    ["2026-10-07", "11:15", "2026-10-07", "12:45", "strategy"],
+    ["2026-10-07", "13:00", "2026-10-07", "14:00", "keynote"],
+    ["2026-10-07", "14:30", "2026-10-07", "16:00", "strategy"],
+    ["2026-10-07", "16:30", "2026-10-07", "17:45", "workshop"],
+    ["2026-10-07", "18:00", "2026-10-07", "19:00", "workshop"],
+    ["2026-10-07", "19:30", "2026-10-07", "20:45", "workshop"],
+    ["2026-10-07", "21:00", "2026-10-07", "22:30", "strategy"]
+  ],
+  day3: [
+    ["2026-10-08", "05:00", "2026-10-08", "06:00", "workshop"],
+    ["2026-10-08", "06:30", "2026-10-08", "07:45", "workshop"],
+    ["2026-10-08", "08:00", "2026-10-08", "09:30", "strategy"],
+    ["2026-10-08", "10:00", "2026-10-08", "11:15", "workshop"],
+    ["2026-10-08", "11:30", "2026-10-08", "13:00", "strategy"],
+    ["2026-10-08", "13:30", "2026-10-08", "14:30", "workshop"],
+    ["2026-10-08", "15:00", "2026-10-08", "16:00", "workshop"],
+    ["2026-10-08", "16:30", "2026-10-08", "17:30", "keynote"],
+    ["2026-10-08", "17:15", "2026-10-08", "18:45", "creative"],
+    ["2026-10-08", "19:00", "2026-10-08", "20:15", "workshop"],
+    ["2026-10-08", "20:30", "2026-10-08", "22:00", "strategy"]
+  ]
+};
+
+// ─── SESSION TYPE LABELS ──────────────────────────────────────────────────────
+function getSessionLabel(type) {
+  const labels = {
+    workshop: "Workshops",
+    strategy: "Strategy Sessions",
+    creative: "Creative Space",
+    keynote:  "Keynote",
+    skill:    "Skill Building Institutes"
+  };
+  return labels[type] || type;
 }
 
-renderAgenda(agendaItems);
+function getSessionSub(type) {
+  const subs = {
+    skill: "Extended, hands-on learning to build practical skills",
+    workshop: "Interactive sessions with discussion and Q&A",
+    strategy: "Panels and collaborative discussions on complex challenges",
+    creative: "Poetry, storytelling, and creative expression",
+    keynote: "Engaging talks from global leaders and practitioners"
+  };
+  return subs[type] || "";
+}
+
+// ─── TIME CONVERSION ──────────────────────────────────────────────────────────
+// Oct 6–8, 2026 is during Eastern Daylight Time (EDT = UTC−4)
+function easternToUtc(dateStr, timeStr) {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  const [hour, minute]     = timeStr.split(":").map(Number);
+  return new Date(Date.UTC(year, month - 1, day, hour + 4, minute));
+}
+
+// ─── DATE STRING HELPERS ──────────────────────────────────────────────────────
+// Returns "YYYY-MM-DD" in the given timezone (ISO-style, sortable)
+function getLocalDateString(dateObj, timezone) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year:     "numeric",
+    month:    "2-digit",
+    day:      "2-digit"
+  }).format(dateObj);
+}
+
+// Returns formatted time string like "9:00 AM"
+function formatInTimezone(dateObj, timezone) {
+  return new Intl.DateTimeFormat("en-US", {
+    hour:     "numeric",
+    minute:   "2-digit",
+    timeZone: timezone
+  }).format(dateObj);
+}
+
+// ─── TIME LABEL BUILDER ───────────────────────────────────────────────────────
+// Compares session start/end local dates against the official event anchor date
+// so "previous day" and "next day" are always relative to the event calendar day,
+// not just relative to each other.
+function buildTimeLabel(startUtc, endUtc, timezone, day) {
+  const startDateStr = getLocalDateString(startUtc, timezone);
+  const endDateStr   = getLocalDateString(endUtc, timezone);
+  const startTimeStr = formatInTimezone(startUtc, timezone);
+  const endTimeStr   = formatInTimezone(endUtc, timezone);
+
+  // The canonical event date for each day — fixed, not derived from UTC conversion
+  const eventDateMap = {
+    day1: "2026-10-06",
+    day2: "2026-10-07",
+    day3: "2026-10-08"
+  };
+  const eventDateStr = eventDateMap[day];
+
+  const isSameDay = startDateStr === endDateStr;
+
+  if (isSameDay) {
+    if (startDateStr < eventDateStr) {
+      return `${startTimeStr} – ${endTimeStr} previous day`;
+    } else if (startDateStr > eventDateStr) {
+      return `${startTimeStr} – ${endTimeStr} next day`;
+    } else {
+      return `${startTimeStr} – ${endTimeStr}`;
+    }
+  } else if (startDateStr < endDateStr) {
+    // Crosses midnight locally
+    if (startDateStr < eventDateStr) {
+      // e.g. starts previous day, ends on event day
+      return `${startTimeStr} previous day – ${endTimeStr}`;
+    } else {
+      // e.g. starts on event day, ends next day
+      return `${startTimeStr} – ${endTimeStr} next day`;
+    }
+  } else {
+    // Should not occur, safe fallback
+    return `${startTimeStr} – ${endTimeStr}`;
+  }
+}
+
+// ─── TIMEZONE ABBREVIATION MAP ────────────────────────────────────────────────
+// Hardcoded for October 2026 (DST states are known and fixed)
+const tzMap = {
+  // 🇺🇸 United States
+  "America/New_York":               "EDT",
+  "America/Chicago":                "CDT",
+  "America/Denver":                 "MDT",
+  "America/Los_Angeles":            "PDT",
+  "America/Anchorage":              "AKDT",
+  "America/Phoenix":                "MST",
+  "Pacific/Honolulu":               "HST",
+  // 🇨🇦 Canada
+  "America/Toronto":                "EDT",
+  "America/Vancouver":              "PDT",
+  "America/Edmonton":               "MDT",
+  "America/Winnipeg":               "CDT",
+  "America/Halifax":                "ADT",
+  "America/St_Johns":               "NDT",
+  // 🌎 Americas
+  "America/Mexico_City":            "CST",
+  "America/Panama":                 "COT",
+  "America/Bogota":                 "COT",
+  "America/Caracas":                "VET",
+  "America/Sao_Paulo":              "BRT",
+  "America/Argentina/Buenos_Aires": "ART",
+  "America/Santiago":               "CLST",
+  // 🇬🇧🇪🇺 Europe (DST ends late October — still active Oct 6–8)
+  "Europe/London":                  "BST",
+  "Europe/Paris":                   "CEST",
+  "Europe/Berlin":                  "CEST",
+  "Europe/Rome":                    "CEST",
+  "Europe/Madrid":                  "CEST",
+  // 🌍 Africa
+  "Africa/Lagos":                   "WAT",
+  "Africa/Cairo":                   "EET",
+  "Africa/Johannesburg":            "SAST",
+  "Africa/Nairobi":                 "EAT",
+  // 🕌 Middle East
+  "Asia/Riyadh":                    "AST",
+  "Asia/Dubai":                     "GST",
+  // 🌏 Asia
+  "Asia/Karachi":                   "PKT",
+  "Asia/Kolkata":                   "IST",
+  "Asia/Dhaka":                     "BDST",
+  "Asia/Bangkok":                   "ICT",
+  "Asia/Jakarta":                   "WIB",
+  "Asia/Singapore":                 "SGT",
+  "Asia/Manila":                    "PHT",
+  "Asia/Shanghai":                  "CST",
+  "Asia/Taipei":                    "CST",
+  "Asia/Seoul":                     "KST",
+  "Asia/Tokyo":                     "JST",
+  // 🇦🇺 Australia
+  "Australia/Perth":                "AWST",
+  "Australia/Adelaide":             "ACDT",
+  "Australia/Brisbane":             "AEST",
+  "Australia/Sydney":               "AEDT",
+  // 🇳🇿 New Zealand
+  "Pacific/Auckland":               "NZDT",
+  // 🌊 Pacific
+  "Pacific/Fiji":                   "FJT"
+};
+function getTzAbbreviation(timezone) {
+  return tzMap[timezone] || "";
+}
+
+// ─── TIMEZONE SELECTOR ────────────────────────────────────────────────────────
+const timezoneSelect = document.getElementById("timezoneSelect");
+const browserZone    = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+function getUtcOffsetMinutes(zone) {
+  const ref = new Date("2026-10-07T12:00:00Z");
+  const localStr = new Intl.DateTimeFormat("en-CA", {
+    timeZone: zone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit",
+    hour12: false
+  }).format(ref);
+  // en-CA gives "YYYY-MM-DD, HH:MM:SS"
+  const [datePart, timePart] = localStr.split(", ");
+  const localUtc = new Date(`${datePart}T${timePart}Z`);
+  return (localUtc - ref) / 60000; // difference in minutes
+}
+
+const allZones = [
+  "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles",
+  "America/Anchorage", "America/Phoenix", "Pacific/Honolulu",
+  "America/Toronto", "America/Vancouver", "America/Edmonton", "America/Winnipeg",
+  "America/Halifax", "America/St_Johns",
+  "America/Mexico_City", "America/Panama", "America/Bogota", "America/Caracas",
+  "America/Sao_Paulo", "America/Argentina/Buenos_Aires", "America/Santiago",
+  "Europe/London", "Europe/Paris", "Europe/Berlin", "Europe/Rome", "Europe/Madrid",
+  "Africa/Lagos", "Africa/Cairo", "Africa/Johannesburg", "Africa/Nairobi",
+  "Asia/Riyadh", "Asia/Dubai",
+  "Asia/Karachi", "Asia/Kolkata", "Asia/Dhaka",
+  "Asia/Bangkok", "Asia/Jakarta", "Asia/Singapore", "Asia/Manila",
+  "Asia/Shanghai", "Asia/Taipei", "Asia/Seoul", "Asia/Tokyo",
+  "Australia/Perth", "Australia/Adelaide", "Australia/Brisbane", "Australia/Sydney",
+  "Pacific/Auckland", "Pacific/Fiji"
+];
+
+if (!allZones.includes(browserZone)) allZones.push(browserZone);
+
+const sortedZones = allZones.slice().sort((a, b) => getUtcOffsetMinutes(a) - getUtcOffsetMinutes(b));
+
+const orderedZones = [
+  browserZone,
+  ...sortedZones.filter(z => z !== browserZone)
+];
+
+const tzFlags = {
+  "America/New_York":               "🇺🇸",
+  "America/Chicago":                "🇺🇸",
+  "America/Denver":                 "🇺🇸",
+  "America/Los_Angeles":            "🇺🇸",
+  "America/Anchorage":              "🇺🇸",
+  "America/Phoenix":                "🇺🇸",
+  "Pacific/Honolulu":               "🇺🇸",
+  "America/Toronto":                "🇨🇦",
+  "America/Vancouver":              "🇨🇦",
+  "America/Edmonton":               "🇨🇦",
+  "America/Winnipeg":               "🇨🇦",
+  "America/Halifax":                "🇨🇦",
+  "America/St_Johns":               "🇨🇦",
+  "America/Mexico_City":            "🇲🇽",
+  "America/Panama":                 "🇵🇦",
+  "America/Bogota":                 "🇨🇴",
+  "America/Caracas":                "🇻🇪",
+  "America/Sao_Paulo":              "🇧🇷",
+  "America/Argentina/Buenos_Aires": "🇦🇷",
+  "America/Santiago":               "🇨🇱",
+  "Europe/London":                  "🇬🇧",
+  "Europe/Paris":                   "🇫🇷",
+  "Europe/Berlin":                  "🇩🇪",
+  "Europe/Rome":                    "🇮🇹",
+  "Europe/Madrid":                  "🇪🇸",
+  "Africa/Lagos":                   "🇳🇬",
+  "Africa/Cairo":                   "🇪🇬",
+  "Africa/Johannesburg":            "🇿🇦",
+  "Africa/Nairobi":                 "🇰🇪",
+  "Asia/Riyadh":                    "🇸🇦",
+  "Asia/Dubai":                     "🇦🇪",
+  "Asia/Karachi":                   "🇵🇰",
+  "Asia/Kolkata":                   "🇮🇳",
+  "Asia/Dhaka":                     "🇧🇩",
+  "Asia/Bangkok":                   "🇹🇭",
+  "Asia/Jakarta":                   "🇮🇩",
+  "Asia/Singapore":                 "🇸🇬",
+  "Asia/Manila":                    "🇵🇭",
+  "Asia/Shanghai":                  "🇨🇳",
+  "Asia/Taipei":                    "🇹🇼",
+  "Asia/Seoul":                     "🇰🇷",
+  "Asia/Tokyo":                     "🇯🇵",
+  "Australia/Perth":                "🇦🇺",
+  "Australia/Adelaide":             "🇦🇺",
+  "Australia/Brisbane":             "🇦🇺",
+  "Australia/Sydney":               "🇦🇺",
+  "Pacific/Auckland":               "🇳🇿",
+  "Pacific/Fiji":                   "🇫🇯"
+};
+
+orderedZones.forEach(zone => {
+  const city   = zone.split("/").pop().replaceAll("_", " ");
+  const abbr   = tzMap[zone] || "";
+  const flag   = tzFlags[zone] || "";
+  const option = document.createElement("option");
+  option.value = zone;
+  const label  = abbr ? `${city} (${abbr})` : city;
+  if (zone === browserZone) {
+    option.textContent = `${flag} ${label} — detected`;
+  } else {
+    option.textContent = `${flag} ${label}`;
+  }
+  timezoneSelect.appendChild(option);
+});
+
+// Default to browser zone, fall back to Eastern
+timezoneSelect.value = browserZone || "America/New_York";
+
+// ─── TIME CATEGORY HELPERS ────────────────────────────────────────────────────
+// Returns local minutes-since-midnight for a UTC date in a given timezone
+function getLocalMinutes(dateObj, timezone) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    hour:     "numeric",
+    minute:   "numeric",
+    hour12:   false,
+    timeZone: timezone
+  }).formatToParts(dateObj);
+  const h = parseInt(parts.find(p => p.type === "hour").value, 10);
+  const m = parseInt(parts.find(p => p.type === "minute").value, 10);
+  return h * 60 + m;
+}
+
+// Returns how many minutes two ranges overlap
+function getOverlapMinutes(start, end, windowStart, windowEnd) {
+  return Math.max(0, Math.min(end, windowEnd) - Math.max(start, windowStart));
+}
+
+// Categorizes a session as "daytime", "evening", or "neutral"
+// based on which window the majority of its duration falls in
+function getTimeCategory(startUtc, endUtc, timezone) {
+  let start = getLocalMinutes(startUtc, timezone);
+  let end   = getLocalMinutes(endUtc, timezone);
+
+  // If end appears before start in minutes, the session crosses midnight
+  if (end <= start) end += 24 * 60;
+
+  const DAY_START     = 7  * 60;       //  7:00 AM
+  const DAY_END       = 17 * 60;       //  5:00 PM
+  const EVENING_START = 17 * 60;       //  5:00 PM
+  const EVENING_END   = 21 * 60 + 30;  //  9:30 PM
+
+  const totalMinutes   = end - start;
+  const daytimeMinutes = getOverlapMinutes(start, end, DAY_START, DAY_END);
+  const eveningMinutes = getOverlapMinutes(start, end, EVENING_START, EVENING_END);
+  const outsideMinutes = totalMinutes - daytimeMinutes - eveningMinutes;
+
+  // Majority falls outside both windows → no highlight
+  if (outsideMinutes > daytimeMinutes && outsideMinutes > eveningMinutes) {
+    return "neutral";
+  }
+  // More evening than daytime → blue
+  if (eveningMinutes > daytimeMinutes) {
+    return "evening";
+  }
+  // More daytime than evening, or a tie → green (bias toward daytime)
+  return "daytime";
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function render(day) {
+  const grid         = document.getElementById("agendaGrid");
+  const selectedZone = timezoneSelect.value;
+  grid.innerHTML     = "";
+
+  data[day].forEach(([startDate, startTime, endDate, endTime, type]) => {
+    const startUtc = easternToUtc(startDate, startTime);
+    const endUtc   = easternToUtc(endDate, endTime);
+
+const category = getTimeCategory(startUtc, endUtc, selectedZone);
+if (showFiltered && category === "neutral") return;
+
+const evening     = category === "evening";
+const comfortable = category === "daytime";
+const neutral     = category === "neutral";
+
+const timeLabel  = buildTimeLabel(startUtc, endUtc, selectedZone, day);
+    const tzAbbr     = getTzAbbreviation(selectedZone);
+
+    const row = document.createElement("div");
+    row.className = "timeRow";
+    row.innerHTML = `
+      <div class="timeLabel">${timeLabel}</div>
+      <div class="sessionBlock${comfortable ? " comfortable" : ""}${evening ? " evening" : ""}">
+        <img class="icon" src="${icons[type]}" alt="">
+        <div>
+          <div class="sessionType">${getSessionLabel(type)}</div>
+<div class="sessionSub">${getSessionSub(type)}</div>
+${comfortable ? `<div class="comfortLabel">${tzAbbr} daytime hours</div>` : ""}
+${evening ? `<div class="eveningLabel">${tzAbbr} evening hours</div>` : ""}
+${neutral && type === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
+${neutral && type !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
+        </div>
+      </div>
+    `;
+    grid.appendChild(row);
+  });
+}
+
+// ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
+document.querySelectorAll(".dayBtn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    render(btn.dataset.day);
+  });
+});
+
+timezoneSelect.addEventListener("change", () => {
+  const activeDay = document.querySelector(".dayBtn.active").dataset.day;
+  render(activeDay);
+});
+
+const filterBtn = document.getElementById("timeFilterBtn");
+
+filterBtn.addEventListener("click", () => {
+  showFiltered = !showFiltered;
+
+  filterBtn.classList.toggle("active");
+
+  filterBtn.textContent = showFiltered
+    ? "Showing daytime & evening hours"
+    : "Show daytime & evening hours";
+
+  const activeDay = document.querySelector(".dayBtn.active").dataset.day;
+  render(activeDay);
+});
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+render("day1");

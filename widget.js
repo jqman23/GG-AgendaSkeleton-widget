@@ -13,45 +13,39 @@ let showFiltered = false;
 // ─── SESSION DATA (all times in MDT = UTC−6) ────────────────────────────────
 const data = {
   day1: [
-    ["2026-10-06", "03:00", "2026-10-06", "06:30", "skill"],
-    ["2026-10-06", "07:00", "2026-10-06", "10:30", "skill"],
-    ["2026-10-06", "09:00", "2026-10-06", "12:30", "skill"],
-    ["2026-10-06", "11:00", "2026-10-06", "14:30", "skill"],
-    ["2026-10-06", "13:00", "2026-10-06", "16:30", "skill"],
-    // 3:00–6:30 PM block removed — no sessions in export
-    ["2026-10-06", "19:00", "2026-10-06", "22:30", "skill"]
+    ["2026-10-06", "03:00", "2026-10-06", "06:30", ["skill"]],
+    ["2026-10-06", "07:00", "2026-10-06", "10:30", ["skill"]],
+    ["2026-10-06", "09:00", "2026-10-06", "12:30", ["skill"]],
+    ["2026-10-06", "11:00", "2026-10-06", "14:30", ["skill"]],
+    ["2026-10-06", "13:00", "2026-10-06", "16:30", ["skill"]],
+    ["2026-10-06", "19:00", "2026-10-06", "22:30", ["skill"]]
   ],
   day2: [
-    ["2026-10-07", "03:00", "2026-10-07", "04:00", "workshop"],
-    ["2026-10-07", "04:15", "2026-10-07", "05:30", "workshop"],
-    ["2026-10-07", "05:45", "2026-10-07", "07:15", "strategy"],
-    ["2026-10-07", "05:45", "2026-10-07", "07:15", "intl"],
-    ["2026-10-07", "07:30", "2026-10-07", "08:45", "workshop"],
-    ["2026-10-07", "09:00", "2026-10-07", "10:30", "strategy"],
-    ["2026-10-07", "10:45", "2026-10-07", "11:45", "workshop"],
-    ["2026-10-07", "12:00", "2026-10-07", "13:00", "keynote"],
-    ["2026-10-07", "13:15", "2026-10-07", "14:45", "strategy"],
-    ["2026-10-07", "13:15", "2026-10-07", "14:45", "workshop"],
-    ["2026-10-07", "15:00", "2026-10-07", "16:15", "workshop"],
-    ["2026-10-07", "16:30", "2026-10-07", "17:30", "workshop"],
-    ["2026-10-07", "17:45", "2026-10-07", "19:00", "workshop"],
-    ["2026-10-07", "19:15", "2026-10-07", "20:45", "strategy"]
+    ["2026-10-07", "03:00", "2026-10-07", "04:00", ["workshop"]],
+    ["2026-10-07", "04:15", "2026-10-07", "05:30", ["workshop"]],
+    ["2026-10-07", "05:45", "2026-10-07", "07:15", ["strategy", "intl"]],
+    ["2026-10-07", "07:30", "2026-10-07", "08:45", ["workshop"]],
+    ["2026-10-07", "09:00", "2026-10-07", "10:30", ["strategy"]],
+    ["2026-10-07", "10:45", "2026-10-07", "11:45", ["workshop"]],
+    ["2026-10-07", "12:00", "2026-10-07", "13:00", ["keynote"]],
+    ["2026-10-07", "13:15", "2026-10-07", "14:45", ["strategy", "workshop"]],
+    ["2026-10-07", "15:00", "2026-10-07", "16:15", ["workshop"]],
+    ["2026-10-07", "16:30", "2026-10-07", "17:30", ["workshop"]],
+    ["2026-10-07", "17:45", "2026-10-07", "19:00", ["workshop"]],
+    ["2026-10-07", "19:15", "2026-10-07", "20:45", ["strategy"]]
   ],
   day3: [
-    ["2026-10-08", "03:00", "2026-10-08", "04:00", "workshop"],
-    ["2026-10-08", "04:15", "2026-10-08", "05:30", "workshop"],
-    ["2026-10-08", "05:45", "2026-10-08", "07:15", "strategy"],
-    ["2026-10-08", "05:45", "2026-10-08", "07:15", "workshop"],
-    ["2026-10-08", "07:30", "2026-10-08", "08:45", "workshop"],
-    ["2026-10-08", "09:00", "2026-10-08", "10:30", "strategy"],
-    ["2026-10-08", "10:45", "2026-10-08", "11:45", "workshop"],
-    ["2026-10-08", "12:00", "2026-10-08", "13:00", "workshop"],
-    ["2026-10-08", "13:15", "2026-10-08", "14:15", "workshop"],
-    // 3:00–3:45 PM keynote removed — no session in export
-    ["2026-10-08", "16:00", "2026-10-08", "17:00", "workshop"],
-    ["2026-10-08", "17:15", "2026-10-08", "18:30", "workshop"],
-    // strategy row removed — no Strategy Sessions in export for this slot; end corrected 20:15 → 19:45
-    ["2026-10-08", "18:45", "2026-10-08", "19:45", "creative"]
+    ["2026-10-08", "03:00", "2026-10-08", "04:00", ["workshop"]],
+    ["2026-10-08", "04:15", "2026-10-08", "05:30", ["workshop"]],
+    ["2026-10-08", "05:45", "2026-10-08", "07:15", ["strategy", "workshop"]],
+    ["2026-10-08", "07:30", "2026-10-08", "08:45", ["workshop"]],
+    ["2026-10-08", "09:00", "2026-10-08", "10:30", ["strategy"]],
+    ["2026-10-08", "10:45", "2026-10-08", "11:45", ["workshop"]],
+    ["2026-10-08", "12:00", "2026-10-08", "13:00", ["workshop"]],
+    ["2026-10-08", "13:15", "2026-10-08", "14:15", ["workshop"]],
+    ["2026-10-08", "16:00", "2026-10-08", "17:00", ["workshop"]],
+    ["2026-10-08", "17:15", "2026-10-08", "18:30", ["workshop"]],
+    ["2026-10-08", "18:45", "2026-10-08", "19:45", ["creative"]]
   ]
 };
 
@@ -443,7 +437,7 @@ function render(day) {
   const selectedZone = timezoneSelect.value;
   grid.innerHTML     = "";
 
-  data[day].forEach(([startDate, startTime, endDate, endTime, type]) => {
+  data[day].forEach(([startDate, startTime, endDate, endTime, types]) => {
     const startUtc = easternToUtc(startDate, startTime);
     const endUtc   = easternToUtc(endDate, endTime);
 
@@ -454,22 +448,31 @@ function render(day) {
     const comfortable = category === "daytime";
     const neutral     = category === "neutral";
 
-    const timeLabel  = buildTimeLabel(startUtc, endUtc, selectedZone, day);
-    const tzAbbr     = getTzAbbreviation(selectedZone);
+    const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, day);
+    const tzAbbr    = getTzAbbreviation(selectedZone);
+    const primary   = types[0];
+
+    const typeContent = types.map((t, i) => `
+      <div class="sessionTypeRow${i > 0 ? " sessionTypeRow--extra" : ""}">
+        <img class="icon" src="${icons[t]}" alt="">
+        <div>
+          <div class="sessionType">${getSessionLabel(t)}</div>
+          ${i === 0 ? `<div class="sessionSub">${getSessionSub(t)}</div>` : ""}
+        </div>
+      </div>
+    `).join("");
 
     const row = document.createElement("div");
     row.className = "timeRow";
     row.innerHTML = `
       <div class="timeLabel">${timeLabel}</div>
       <div class="sessionBlock${comfortable ? " comfortable" : ""}${evening ? " evening" : ""}">
-        <img class="icon" src="${icons[type]}" alt="">
-        <div>
-          <div class="sessionType">${getSessionLabel(type)}</div>
-          <div class="sessionSub">${getSessionSub(type)}</div>
+        <div class="sessionTypes">${typeContent}</div>
+        <div class="sessionMeta">
           ${comfortable ? `<div class="comfortLabel">${tzAbbr} daytime hours</div>` : ""}
           ${evening ? `<div class="eveningLabel">${tzAbbr} evening hours</div>` : ""}
-          ${neutral && type === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
-          ${neutral && type !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
+          ${neutral && primary === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
+          ${neutral && primary !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
         </div>
       </div>
     `;

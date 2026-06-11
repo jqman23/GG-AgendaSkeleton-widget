@@ -1,0 +1,71 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  background: #f4f4f5;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.widget {
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 480px;
+}
+
+.widget-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 1rem;
+}
+
+.agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.agenda-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: #f9fafb;
+  border-left: 3px solid #6366f1;
+}
+
+.agenda-item .time {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #6b7280;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+
+.agenda-item .details {
+  flex: 1;
+}
+
+.agenda-item .title {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.agenda-item .subtitle {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}

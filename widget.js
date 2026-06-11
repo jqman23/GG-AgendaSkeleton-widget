@@ -446,26 +446,54 @@ function buildSessionsHTML(blockKey) {
 
   return `<div class="sessionPanel" hidden>
     <div class="sessionGrid">
-      ${sessions.map(s => `
+      ${sessions.map(s => {
+        const descId = `desc-${esc(s.code)}`;
+        return `
         <div class="sessionCard">
           ${s.theme ? `<div class="sessionTheme">${esc(s.theme)}</div>` : ""}
           <div class="sessionCardTitle">${esc(s.name)}</div>
-          ${s.description ? `<p class="sessionDesc">${esc(s.description)}</p>` : ""}
+          ${s.description ? `<p class="sessionDesc" id="${descId}">${esc(s.description)}</p>
+          <button class="descExpandBtn" onclick="toggleDesc(this,'${descId}')" aria-expanded="false">View full details <span class="descExpandIcon">&#9660;</span></button>` : ""}
           ${s.speakers.length ? `
             <div class="speakerRow">
-              ${s.speakers.map(sp => `
+              ${s.speakers.map(sp => {
+                const initials = esc(sp.name.split(" ").map(w => w[0]).slice(0,2).join(""));
+                const avatar = sp.photo
+                  ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
+                  : `<div class="speakerInitials">${initials}</div>`;
+                return `
                 <div class="speakerChip" tabindex="0">
-                  <div class="speakerInitials">${esc(sp.name.split(" ").map(w => w[0]).slice(0,2).join(""))}</div>
+                  ${avatar}
                   <div class="speakerChipInfo">
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
                   ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p></div>` : ""}
-                </div>`).join("")}
+                </div>`;
+              }).join("")}
             </div>` : ""}
-        </div>`).join("")}
+        </div>`;
+      }).join("")}
     </div>
   </div>`;
+}
+
+function toggleDesc(btn, descId) {
+  const desc = document.getElementById(descId);
+  if (!desc) return;
+  const isExpanded = btn.getAttribute("aria-expanded") === "true";
+  if (isExpanded) {
+    desc.classList.remove("sessionDesc--expanded");
+    btn.setAttribute("aria-expanded", "false");
+    btn.firstChild.textContent = "View full details ";
+    btn.querySelector(".descExpandIcon").style.transform = "";
+  } else {
+    desc.classList.add("sessionDesc--expanded");
+    btn.setAttribute("aria-expanded", "true");
+    btn.firstChild.textContent = "View less ";
+    btn.querySelector(".descExpandIcon").style.transform = "rotate(180deg)";
+  }
+  queueWidgetHeightPost();
 }
 
 let openBlockEl = null;
@@ -478,7 +506,8 @@ function togglePanel(blockWrap, forceOpen) {
   const willOpen = forceOpen !== undefined ? forceOpen : panel.hidden;
 
   if (willOpen) {
-    if (openBlockEl && openBlockEl !== blockWrap) {
+    // Only enforce single-open when user clicks a block (not expand/collapse all)
+    if (forceOpen === undefined && openBlockEl && openBlockEl !== blockWrap) {
       const prev = openBlockEl.querySelector(".sessionPanel");
       const prevChev = openBlockEl.querySelector(".chevron");
       if (prev) prev.hidden = true;
@@ -488,7 +517,7 @@ function togglePanel(blockWrap, forceOpen) {
     panel.hidden = false;
     chevron?.classList.add("open");
     blockWrap.querySelector(".timeRow")?.classList.add("block--open");
-    openBlockEl = blockWrap;
+    if (forceOpen === undefined) openBlockEl = blockWrap;
   } else {
     panel.hidden = true;
     chevron?.classList.remove("open");

@@ -334,6 +334,34 @@ body {
   overflow: hidden;
 }
 
+/* Description expand toggle */
+.sessionDesc--expanded {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+
+.descExpandBtn {
+  border: none;
+  background: none;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #187089;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 0 0;
+  transition: color .15s;
+}
+.descExpandBtn:hover { color: #122345; }
+.descExpandIcon {
+  display: inline-block;
+  transition: transform .25s ease;
+  font-size: 0.6rem;
+}
+
 /* Speaker row */
 .speakerRow {
   display: flex;
@@ -370,6 +398,11 @@ body {
   justify-content: center;
   flex-shrink: 0;
   letter-spacing: 0.02em;
+}
+.speakerPhoto {
+  object-fit: cover;
+  border: 1.5px solid #e8eaed;
+  background: #e8eaed;
 }
 
 .speakerChipInfo {

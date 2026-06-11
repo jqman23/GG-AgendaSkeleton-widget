@@ -6,7 +6,7 @@ const icons = {
   keynote: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/70e651e949504943907244bd4cfef35e.png",
   skill:   "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/8230f92e454c40c49550e623915ee73e.png"
 };
-  let showFiltered = false;
+let showFiltered = false;
 
 
 // ─── SESSION DATA (all times in Eastern) ─────────────────────────────────────
@@ -71,6 +71,47 @@ function getSessionSub(type) {
   };
   return subs[type] || "";
 }
+
+// ─── IFRAME HEIGHT SYNC ──────────────────────────────────────────────────────
+// Cvent embeds this page in an iframe and listens for { ggWidgetHeight }.
+// Send the current document height after every render and whenever assets/layout
+// change so the parent iframe can grow without showing internal scrollbars.
+const HEIGHT_MESSAGE_KEY = "ggWidgetHeight";
+let heightSyncFrame = null;
+let lastSentHeight = 0;
+
+function getDocumentHeight() {
+  const widget = document.getElementById("agendaWidget");
+
+  if (widget) {
+    const rect = widget.getBoundingClientRect();
+    const styles = window.getComputedStyle(widget);
+    const marginTop = parseFloat(styles.marginTop) || 0;
+    const marginBottom = parseFloat(styles.marginBottom) || 0;
+
+    return Math.ceil(rect.height + marginTop + marginBottom);
+  }
+
+  return Math.ceil(document.body.scrollHeight);
+}
+
+function postWidgetHeight() {
+  heightSyncFrame = null;
+
+  if (window.parent === window) return;
+
+  const height = getDocumentHeight();
+  if (!height || height === lastSentHeight) return;
+
+  lastSentHeight = height;
+  window.parent.postMessage({ [HEIGHT_MESSAGE_KEY]: height }, "*");
+}
+
+function queueWidgetHeightPost() {
+  if (heightSyncFrame !== null) return;
+  heightSyncFrame = window.requestAnimationFrame(postWidgetHeight);
+}
+
 
 // ─── TIME CONVERSION ──────────────────────────────────────────────────────────
 // Oct 6–8, 2026 is during Eastern Daylight Time (EDT = UTC−4)
@@ -211,7 +252,23 @@ function getTzAbbreviation(timezone) {
 
 // ─── TIMEZONE SELECTOR ────────────────────────────────────────────────────────
 const timezoneSelect = document.getElementById("timezoneSelect");
-const browserZone    = Intl.DateTimeFormat().resolvedOptions().timeZone;
+const DEFAULT_TIMEZONE = "America/New_York";
+const detectedZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+function isSupportedTimeZone(zone) {
+  if (!zone) return false;
+
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: zone }).format();
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+const browserZone = isSupportedTimeZone(detectedZone)
+  ? detectedZone
+  : DEFAULT_TIMEZONE;
 
 function getUtcOffsetMinutes(zone) {
   const ref = new Date("2026-10-07T12:00:00Z");
@@ -320,7 +377,7 @@ orderedZones.forEach(zone => {
 });
 
 // Default to browser zone, fall back to Eastern
-timezoneSelect.value = browserZone || "America/New_York";
+timezoneSelect.value = browserZone;
 
 // ─── TIME CATEGORY HELPERS ────────────────────────────────────────────────────
 // Returns local minutes-since-midnight for a UTC date in a given timezone
@@ -382,14 +439,14 @@ function render(day) {
     const startUtc = easternToUtc(startDate, startTime);
     const endUtc   = easternToUtc(endDate, endTime);
 
-const category = getTimeCategory(startUtc, endUtc, selectedZone);
-if (showFiltered && category === "neutral") return;
+    const category = getTimeCategory(startUtc, endUtc, selectedZone);
+    if (showFiltered && category === "neutral") return;
 
-const evening     = category === "evening";
-const comfortable = category === "daytime";
-const neutral     = category === "neutral";
+    const evening     = category === "evening";
+    const comfortable = category === "daytime";
+    const neutral     = category === "neutral";
 
-const timeLabel  = buildTimeLabel(startUtc, endUtc, selectedZone, day);
+    const timeLabel  = buildTimeLabel(startUtc, endUtc, selectedZone, day);
     const tzAbbr     = getTzAbbreviation(selectedZone);
 
     const row = document.createElement("div");
@@ -400,16 +457,18 @@ const timeLabel  = buildTimeLabel(startUtc, endUtc, selectedZone, day);
         <img class="icon" src="${icons[type]}" alt="">
         <div>
           <div class="sessionType">${getSessionLabel(type)}</div>
-<div class="sessionSub">${getSessionSub(type)}</div>
-${comfortable ? `<div class="comfortLabel">${tzAbbr} daytime hours</div>` : ""}
-${evening ? `<div class="eveningLabel">${tzAbbr} evening hours</div>` : ""}
-${neutral && type === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
-${neutral && type !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
+          <div class="sessionSub">${getSessionSub(type)}</div>
+          ${comfortable ? `<div class="comfortLabel">${tzAbbr} daytime hours</div>` : ""}
+          ${evening ? `<div class="eveningLabel">${tzAbbr} evening hours</div>` : ""}
+          ${neutral && type === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
+          ${neutral && type !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
         </div>
       </div>
     `;
     grid.appendChild(row);
   });
+
+  queueWidgetHeightPost();
 }
 
 // ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
@@ -440,6 +499,37 @@ filterBtn.addEventListener("click", () => {
   const activeDay = document.querySelector(".dayBtn.active").dataset.day;
   render(activeDay);
 });
+
+// ─── IFRAME HEIGHT LISTENERS ─────────────────────────────────────────────────
+window.addEventListener("load", queueWidgetHeightPost);
+window.addEventListener("resize", queueWidgetHeightPost);
+
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(queueWidgetHeightPost);
+}
+
+document.addEventListener("load", event => {
+  if (event.target && event.target.tagName === "IMG") {
+    queueWidgetHeightPost();
+  }
+}, true);
+
+if ("ResizeObserver" in window) {
+  const resizeObserver = new ResizeObserver(queueWidgetHeightPost);
+  const widget = document.getElementById("agendaWidget");
+
+  if (widget) resizeObserver.observe(widget);
+  resizeObserver.observe(document.body);
+}
+
+if ("MutationObserver" in window) {
+  const mutationObserver = new MutationObserver(queueWidgetHeightPost);
+  mutationObserver.observe(document.body, {
+    attributes: true,
+    childList: true,
+    subtree: true
+  });
+}
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 render("day1");

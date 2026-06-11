@@ -1,71 +1,179 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+* {
+  font-family: "Montserrat", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.01em;
 }
-
-body {
-  font-family: system-ui, sans-serif;
-  background: #f4f4f5;
+#agendaWidget {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 0 12px;
+  font-size: 17.14px; /* scales everything so 1.05rem ≈ 18px */
+}
+.topBar {
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 100vh;
-  padding: 2rem;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
 }
-
-.widget {
+.dayToggle {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.dayBtn {
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 480px;
-}
-
-.widget-title {
-  font-size: 1.1rem;
+  cursor: pointer;
   font-weight: 600;
-  color: #111827;
-  margin-bottom: 1rem;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  transition: all .2s ease;
 }
-
-.agenda-list {
+.dayBtn.active {
+  background: #122345;
+  color: white;
+}
+.dayBtn:hover {
+  transform: translateY(-2px);
+}
+.tzSelector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tzSelector label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #122345;
+}
+.tzSelector select {
+  padding: 9px 11px;
+  border-radius: 9px;
+  border: none;
+  background: #ffffff;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  font-weight: 500;
+  max-width: 260px;
+}
+#agendaGrid {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 14px;
 }
-
-.agenda-item {
+.timeRow {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 14px;
+  align-items: stretch;
+}
+.timeLabel {
+  font-weight: 600;
+  color: #122345;
+  font-size: 1rem;
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  background: #f9fafb;
-  border-left: 3px solid #6366f1;
+  align-items: center;
 }
-
-.agenda-item .time {
+.sessionBlock {
+  background: #ffffffd9;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.10);
+  transition: transform .2s ease;
+}
+.sessionBlock:hover {
+  transform: translateY(-2px);
+}
+.icon {
+  width: 38px;
+  height: 38px;
+}
+.sessionType {
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: #000;
+}
+.sessionSub {
+  font-size: 0.95rem;
+  color: #000000aa;
+}
+.sessionBlock.comfortable {
+  background: linear-gradient(
+    90deg,
+    rgba(190, 222, 160, 0.25) 0%,
+    rgba(255,255,255,0.95) 40%
+  );
+  border-left: 4px solid #A3C46B;
+}
+.comfortLabel {
   font-size: 0.75rem;
-  font-weight: 500;
-  color: #6b7280;
-  white-space: nowrap;
-  padding-top: 2px;
-}
-
-.agenda-item .details {
-  flex: 1;
-}
-
-.agenda-item .title {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #111827;
-}
-
-.agenda-item .subtitle {
-  font-size: 0.8rem;
-  color: #9ca3af;
+  font-weight: 600;
+  color: #7FAE4A;
   margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+.sessionBlock.evening {
+  background: linear-gradient(
+    90deg,
+    rgba(24, 112, 137, 0.18) 0%,
+    rgba(255,255,255,0.95) 40%
+  );
+  border-left: 4px solid #187089;
+}
+.eveningLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #187089;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+.neutralLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #777;
+  margin-top: 2px;
+  letter-spacing: 0.02em;
+}
+.filterToggle button {
+  border: none;
+  padding: 9px 14px;
+  border-radius: 9px;
+  background: #ffffff;
+  cursor: pointer;
+  font-weight: 600;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  transition: all .2s ease;
+}
+
+.filterToggle button.active {
+  background: #122345;
+  color: white;
+}
+
+.filterToggle button:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 700px) {
+  .timeRow {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .timeLabel {
+    padding-left: 4px;
+  }
+  .tzSelector {
+    width: 100%;
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .tzSelector select {
+    width: 100%;
+    max-width: 100%;
+  }
 }

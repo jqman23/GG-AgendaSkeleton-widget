@@ -10,14 +10,7 @@ const icons = {
 let showFiltered = false;
 
 
-// ─── SESSION DATA (all times in Eastern) ─────────────────────────────────────
-// Corrected to match global-gathering-program-skeleton (6).csv + session export alignment.
-// 5 skeleton changes applied:
-//   #1  Wed 05:45–07:15  → added "intl" row (International Exchange confirmed in session export)
-//   #2  Wed 13:15–14:45  → added "workshop" row (FROM4500 is a Workshop, block was Strategy-only)
-//   #3  Thu 05:45–07:15  → added "workshop" row (FAMI7727 is a Workshop, block was Strategy-only)
-//   #4  Thu 18:45–20:15  → added "creative" row (ECHO4815 is Creative Space, block was Strategy-only)
-//   #5  Thu 13:15 block  → end time corrected 14:45 → 14:15 (all sessions in block end at 2:15 PM ET)
+// ─── SESSION DATA (all times in MDT = UTC−6) ────────────────────────────────
 const data = {
   day1: [
     ["2026-10-06", "03:00", "2026-10-06", "06:30", "skill"],
@@ -25,20 +18,20 @@ const data = {
     ["2026-10-06", "09:00", "2026-10-06", "12:30", "skill"],
     ["2026-10-06", "11:00", "2026-10-06", "14:30", "skill"],
     ["2026-10-06", "13:00", "2026-10-06", "16:30", "skill"],
-    ["2026-10-06", "15:00", "2026-10-06", "18:30", "skill"],
+    // 3:00–6:30 PM block removed — no sessions in export
     ["2026-10-06", "19:00", "2026-10-06", "22:30", "skill"]
   ],
   day2: [
     ["2026-10-07", "03:00", "2026-10-07", "04:00", "workshop"],
     ["2026-10-07", "04:15", "2026-10-07", "05:30", "workshop"],
     ["2026-10-07", "05:45", "2026-10-07", "07:15", "strategy"],
-    ["2026-10-07", "05:45", "2026-10-07", "07:15", "intl"],      // change #1
+    ["2026-10-07", "05:45", "2026-10-07", "07:15", "intl"],
     ["2026-10-07", "07:30", "2026-10-07", "08:45", "workshop"],
     ["2026-10-07", "09:00", "2026-10-07", "10:30", "strategy"],
     ["2026-10-07", "10:45", "2026-10-07", "11:45", "workshop"],
     ["2026-10-07", "12:00", "2026-10-07", "13:00", "keynote"],
     ["2026-10-07", "13:15", "2026-10-07", "14:45", "strategy"],
-    ["2026-10-07", "13:15", "2026-10-07", "14:45", "workshop"],  // change #2
+    ["2026-10-07", "13:15", "2026-10-07", "14:45", "workshop"],
     ["2026-10-07", "15:00", "2026-10-07", "16:15", "workshop"],
     ["2026-10-07", "16:30", "2026-10-07", "17:30", "workshop"],
     ["2026-10-07", "17:45", "2026-10-07", "19:00", "workshop"],
@@ -48,17 +41,17 @@ const data = {
     ["2026-10-08", "03:00", "2026-10-08", "04:00", "workshop"],
     ["2026-10-08", "04:15", "2026-10-08", "05:30", "workshop"],
     ["2026-10-08", "05:45", "2026-10-08", "07:15", "strategy"],
-    ["2026-10-08", "05:45", "2026-10-08", "07:15", "workshop"],  // change #3
+    ["2026-10-08", "05:45", "2026-10-08", "07:15", "workshop"],
     ["2026-10-08", "07:30", "2026-10-08", "08:45", "workshop"],
     ["2026-10-08", "09:00", "2026-10-08", "10:30", "strategy"],
     ["2026-10-08", "10:45", "2026-10-08", "11:45", "workshop"],
     ["2026-10-08", "12:00", "2026-10-08", "13:00", "workshop"],
-    ["2026-10-08", "13:15", "2026-10-08", "14:15", "workshop"],  // change #5: end 14:45 → 14:15
-    ["2026-10-08", "15:00", "2026-10-08", "15:45", "keynote"],
+    ["2026-10-08", "13:15", "2026-10-08", "14:15", "workshop"],
+    // 3:00–3:45 PM keynote removed — no session in export
     ["2026-10-08", "16:00", "2026-10-08", "17:00", "workshop"],
     ["2026-10-08", "17:15", "2026-10-08", "18:30", "workshop"],
-    ["2026-10-08", "18:45", "2026-10-08", "20:15", "strategy"],
-    ["2026-10-08", "18:45", "2026-10-08", "20:15", "creative"]   // change #4
+    // strategy row removed — no Strategy Sessions in export for this slot; end corrected 20:15 → 19:45
+    ["2026-10-08", "18:45", "2026-10-08", "19:45", "creative"]
   ]
 };
 
@@ -129,11 +122,11 @@ function queueWidgetHeightPost() {
 
 
 // ─── TIME CONVERSION ──────────────────────────────────────────────────────────
-// Oct 6–8, 2026 is during Eastern Daylight Time (EDT = UTC−4)
+// Oct 6–8, 2026 is during Mountain Daylight Time (MDT = UTC−6)
 function easternToUtc(dateStr, timeStr) {
   const [year, month, day] = dateStr.split("-").map(Number);
   const [hour, minute]     = timeStr.split(":").map(Number);
-  return new Date(Date.UTC(year, month - 1, day, hour + 4, minute));
+  return new Date(Date.UTC(year, month - 1, day, hour + 6, minute));
 }
 
 // ─── DATE STRING HELPERS ──────────────────────────────────────────────────────

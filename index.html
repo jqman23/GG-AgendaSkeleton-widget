@@ -1,18 +1,18 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GG Agenda Skeleton Widget</title>
-  <link rel="stylesheet" href="style.css" />
-</head>
-<body>
-  <div class="widget" id="agenda-widget">
-    <h2 class="widget-title">Agenda</h2>
-    <div class="agenda-list" id="agenda-list">
-      <!-- agenda items injected here -->
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<div id="agendaWidget">
+  <div class="topBar">
+    <div class="dayToggle">
+      <button class="dayBtn active" data-day="day1">Oct 6 • Skill Building Institutes</button>
+      <button class="dayBtn" data-day="day2">Oct 7 • The Global Gathering</button>
+      <button class="dayBtn" data-day="day3">Oct 8 • The Global Gathering</button>
+    </div>
+    <div class="tzSelector">
+      <label for="timezoneSelect">Time zone</label>
+      <select id="timezoneSelect"></select>
+      <div class="filterToggle">
+  <button id="timeFilterBtn">Show daytime & evening hours</button>
+</div>
     </div>
   </div>
-  <script src="widget.js"></script>
-</body>
-</html>
+  <div id="agendaGrid"></div>
+</div>

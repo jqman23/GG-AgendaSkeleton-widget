@@ -57,7 +57,7 @@ function getSessionLabel(type) {
     creative: "Creative Space",
     keynote:  "Keynote",
     skill:    "Skill Building Institutes",
-    intl:     "International Exchange"
+    intl:     "International Exchanges"
   };
   return labels[type] || type;
 }
@@ -69,7 +69,7 @@ function getSessionSub(type) {
     strategy: "Panels and collaborative discussions on complex challenges",
     creative: "Poetry, storytelling, and creative expression",
     keynote:  "Engaging talks from global leaders and practitioners",
-    intl:     "Cross-cultural perspectives and global exchange"
+    intl:     "World leaders convening to examine emerging issues shaping child and family well-being worldwide"
   };
   return subs[type] || "";
 }
@@ -431,11 +431,67 @@ function getTimeCategory(startUtc, endUtc, timezone) {
   return "daytime";
 }
 
+// ─── SESSION PANEL HELPERS ────────────────────────────────────────────────────
+function buildSessionsHTML(blockKey) {
+  const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
+  if (!sessions.length) return "";
+
+  return `<div class="sessionPanel" hidden>
+    <ul class="sessionList">
+      ${sessions.map(s => `
+        <li class="sessionItem">
+          <div class="sessionName">${s.name}</div>
+          ${s.speakers.length ? `
+            <ul class="speakerList">
+              ${s.speakers.map(sp => `
+                <li class="speakerItem">
+                  <span class="speakerName">${sp.name}</span>${sp.title || sp.org ? `<span class="speakerMeta">${[sp.title, sp.org].filter(Boolean).join(" · ")}</span>` : ""}
+                </li>`).join("")}
+            </ul>` : ""}
+        </li>`).join("")}
+    </ul>
+  </div>`;
+}
+
+let openBlockEl = null;
+
+function togglePanel(blockWrap, forceOpen) {
+  const panel = blockWrap.querySelector(".sessionPanel");
+  const chevron = blockWrap.querySelector(".chevron");
+  if (!panel) return;
+
+  const willOpen = forceOpen !== undefined ? forceOpen : panel.hidden;
+
+  if (willOpen) {
+    if (openBlockEl && openBlockEl !== blockWrap) {
+      const prev = openBlockEl.querySelector(".sessionPanel");
+      const prevChev = openBlockEl.querySelector(".chevron");
+      if (prev) prev.hidden = true;
+      if (prevChev) prevChev.classList.remove("open");
+      openBlockEl.querySelector(".timeRow")?.classList.remove("block--open");
+    }
+    panel.hidden = false;
+    chevron?.classList.add("open");
+    blockWrap.querySelector(".timeRow")?.classList.add("block--open");
+    openBlockEl = blockWrap;
+  } else {
+    panel.hidden = true;
+    chevron?.classList.remove("open");
+    blockWrap.querySelector(".timeRow")?.classList.remove("block--open");
+    if (openBlockEl === blockWrap) openBlockEl = null;
+  }
+  queueWidgetHeightPost();
+}
+
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function render(day) {
   const grid         = document.getElementById("agendaGrid");
   const selectedZone = timezoneSelect.value;
   grid.innerHTML     = "";
+  openBlockEl        = null;
+
+  const skillNote = document.getElementById("skillNote");
+  skillNote.style.display = day === "day1" ? "" : "none";
 
   data[day].forEach(([startDate, startTime, endDate, endTime, types]) => {
     const startUtc = easternToUtc(startDate, startTime);
@@ -451,6 +507,8 @@ function render(day) {
     const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, day);
     const tzAbbr    = getTzAbbreviation(selectedZone);
     const primary   = types[0];
+    const blockKey  = `${startDate}|${startTime}`;
+    const hasSessions = typeof sessionsByBlock !== "undefined" && (sessionsByBlock[blockKey] || []).length > 0;
 
     const typeContent = types.map((t, i) => `
       <div class="sessionTypeRow${i > 0 ? " sessionTypeRow--extra" : ""}">
@@ -462,21 +520,30 @@ function render(day) {
       </div>
     `).join("");
 
-    const row = document.createElement("div");
-    row.className = "timeRow";
-    row.innerHTML = `
-      <div class="timeLabel">${timeLabel}</div>
-      <div class="sessionBlock${comfortable ? " comfortable" : ""}${evening ? " evening" : ""}">
-        <div class="sessionTypes">${typeContent}</div>
-        <div class="sessionMeta">
-          ${comfortable ? `<div class="comfortLabel">${tzAbbr} daytime hours</div>` : ""}
-          ${evening ? `<div class="eveningLabel">${tzAbbr} evening hours</div>` : ""}
-          ${neutral && primary === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
-          ${neutral && primary !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
+    const blockWrap = document.createElement("div");
+    blockWrap.className = "blockWrap";
+    blockWrap.innerHTML = `
+      <div class="timeRow${hasSessions ? " timeRow--clickable" : ""}">
+        <div class="timeLabel">${timeLabel}</div>
+        <div class="sessionBlock${comfortable ? " comfortable" : ""}${evening ? " evening" : ""}">
+          <div class="sessionTypes">${typeContent}</div>
+          <div class="sessionMeta">
+            ${comfortable ? `<div class="comfortLabel">${tzAbbr} daytime hours</div>` : ""}
+            ${evening ? `<div class="eveningLabel">${tzAbbr} evening hours</div>` : ""}
+            ${neutral && primary === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
+            ${neutral && primary !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
+          </div>
         </div>
+        ${hasSessions ? `<span class="chevron" aria-hidden="true"></span>` : ""}
       </div>
+      ${buildSessionsHTML(blockKey)}
     `;
-    grid.appendChild(row);
+
+    if (hasSessions) {
+      blockWrap.querySelector(".timeRow").addEventListener("click", () => togglePanel(blockWrap));
+    }
+
+    grid.appendChild(blockWrap);
   });
 
   queueWidgetHeightPost();
@@ -500,15 +567,18 @@ const filterBtn = document.getElementById("timeFilterBtn");
 
 filterBtn.addEventListener("click", () => {
   showFiltered = !showFiltered;
-
   filterBtn.classList.toggle("active");
-
-  filterBtn.textContent = showFiltered
-    ? "Showing daytime & evening hours"
-    : "Show daytime & evening hours";
-
+  filterBtn.textContent = showFiltered ? "Showing daytime & evening hours" : "Show daytime & evening hours";
   const activeDay = document.querySelector(".dayBtn.active").dataset.day;
   render(activeDay);
+});
+
+document.getElementById("expandAllBtn").addEventListener("click", () => {
+  document.querySelectorAll(".blockWrap").forEach(bw => togglePanel(bw, true));
+});
+
+document.getElementById("collapseAllBtn").addEventListener("click", () => {
+  document.querySelectorAll(".blockWrap").forEach(bw => togglePanel(bw, false));
 });
 
 // ─── IFRAME HEIGHT LISTENERS ─────────────────────────────────────────────────

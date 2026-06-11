@@ -75,12 +75,6 @@ body {
   flex-direction: column;
   gap: 14px;
 }
-.timeRow {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 14px;
-  align-items: stretch;
-}
 .timeLabel {
   font-weight: 600;
   color: #122345;
@@ -189,6 +183,136 @@ body {
 
 .filterToggle button:hover {
   transform: translateY(-1px);
+}
+
+/* ── Expand / Collapse controls ───────────────────────────── */
+.expandControls {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.expandBtn {
+  border: none;
+  padding: 7px 14px;
+  border-radius: 9px;
+  background: #ffffff;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: #122345;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.07);
+  transition: all .2s ease;
+}
+.expandBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.10); }
+
+/* ── Skill note banner ────────────────────────────────────── */
+.skillNote {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #f0f4ff;
+  border-left: 3px solid #122345;
+  border-radius: 8px;
+  padding: 9px 14px;
+  font-size: 0.85rem;
+  color: #374151;
+  margin-bottom: 14px;
+}
+.skillNote a {
+  color: #122345;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.skillNote a:hover { text-decoration: underline; }
+
+/* ── Block wrapper & clickable row ───────────────────────── */
+.blockWrap { display: flex; flex-direction: column; }
+
+.timeRow--clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.timeRow--clickable:hover .sessionBlock {
+  box-shadow: 0 10px 24px rgba(0,0,0,0.13);
+  transform: translateY(-1px);
+}
+.timeRow--clickable .sessionBlock { transition: box-shadow .2s, transform .2s; }
+
+.timeRow {
+  display: grid;
+  grid-template-columns: 150px 1fr auto;
+  gap: 14px;
+  align-items: stretch;
+}
+
+/* ── Chevron ──────────────────────────────────────────────── */
+.chevron {
+  display: flex;
+  align-items: center;
+  color: #122345;
+  font-size: 1.1rem;
+  opacity: 0.45;
+  transition: transform .25s, opacity .2s;
+  padding-right: 4px;
+}
+.chevron::after { content: "›"; transform: rotate(90deg); display: block; }
+.chevron.open { transform: rotate(90deg); opacity: 0.7; }
+.block--open .sessionBlock { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+
+/* ── Session panel ────────────────────────────────────────── */
+.sessionPanel {
+  margin-left: 164px; /* aligns under sessionBlock (150px timeLabel + 14px gap) */
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.07);
+  border-top: none;
+  border-radius: 0 0 14px 14px;
+  padding: 2px 0 6px;
+  box-shadow: 0 8px 18px rgba(0,0,0,0.07);
+}
+
+.sessionList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sessionItem {
+  padding: 10px 18px;
+  border-bottom: 1px solid #f3f4f6;
+}
+.sessionItem:last-child { border-bottom: none; }
+
+.sessionName {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.speakerList {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 0;
+}
+.speakerItem {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 6px;
+}
+.speakerName {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #374151;
+}
+.speakerMeta {
+  font-size: 0.75rem;
+  color: #9ca3af;
 }
 
 @media (max-width: 700px) {

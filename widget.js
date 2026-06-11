@@ -432,24 +432,39 @@ function getTimeCategory(startUtc, endUtc, timezone) {
 }
 
 // ─── SESSION PANEL HELPERS ────────────────────────────────────────────────────
+function esc(str) {
+  return String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function buildSessionsHTML(blockKey) {
   const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
   if (!sessions.length) return "";
 
   return `<div class="sessionPanel" hidden>
-    <ul class="sessionList">
+    <div class="sessionGrid">
       ${sessions.map(s => `
-        <li class="sessionItem">
-          <div class="sessionName">${s.name}</div>
+        <div class="sessionCard">
+          ${s.theme ? `<div class="sessionTheme">${esc(s.theme)}</div>` : ""}
+          <div class="sessionCardTitle">${esc(s.name)}</div>
+          ${s.description ? `<p class="sessionDesc">${esc(s.description)}</p>` : ""}
           ${s.speakers.length ? `
-            <ul class="speakerList">
+            <div class="speakerRow">
               ${s.speakers.map(sp => `
-                <li class="speakerItem">
-                  <span class="speakerName">${sp.name}</span>${sp.title || sp.org ? `<span class="speakerMeta">${[sp.title, sp.org].filter(Boolean).join(" · ")}</span>` : ""}
-                </li>`).join("")}
-            </ul>` : ""}
-        </li>`).join("")}
-    </ul>
+                <div class="speakerChip" tabindex="0">
+                  <div class="speakerInitials">${esc(sp.name.split(" ").map(w => w[0]).slice(0,2).join(""))}</div>
+                  <div class="speakerChipInfo">
+                    <span class="speakerChipName">${esc(sp.name)}</span>
+                    ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
+                  </div>
+                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p></div>` : ""}
+                </div>`).join("")}
+            </div>` : ""}
+        </div>`).join("")}
+    </div>
   </div>`;
 }
 

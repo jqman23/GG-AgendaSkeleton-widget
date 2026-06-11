@@ -267,57 +267,188 @@ body {
 
 /* ── Session panel ────────────────────────────────────────── */
 .sessionPanel {
-  margin-left: 164px; /* aligns under sessionBlock (150px timeLabel + 14px gap) */
-  background: #fff;
+  margin-left: 164px;
+  background: #f8f9fb;
   border: 1px solid rgba(0,0,0,0.07);
   border-top: none;
-  border-radius: 0 0 14px 14px;
-  padding: 2px 0 6px;
-  box-shadow: 0 8px 18px rgba(0,0,0,0.07);
+  border-radius: 0 0 16px 16px;
+  padding: 16px 16px 12px;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.07);
 }
 
-.sessionList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Card grid */
+.sessionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
 }
 
-.sessionItem {
-  padding: 10px 18px;
-  border-bottom: 1px solid #f3f4f6;
+.sessionCard {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1.5px solid rgba(18,35,69,0.07);
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: box-shadow .18s ease, border-color .18s ease;
 }
-.sessionItem:last-child { border-bottom: none; }
+.sessionCard:hover {
+  box-shadow: 0 6px 20px rgba(18,35,69,0.10);
+  border-color: rgba(18,35,69,0.15);
+}
 
-.sessionName {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: #111827;
+/* Theme chip */
+.sessionTheme {
+  display: inline-block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.055em;
+  text-transform: uppercase;
+  color: #6b6b2a;
+  background: rgba(190,190,123,0.18);
+  border-radius: 999px;
+  padding: 3px 9px;
+  align-self: flex-start;
+  line-height: 1.4;
+}
+
+/* Session title */
+.sessionCardTitle {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #122345;
   line-height: 1.35;
 }
 
-.speakerList {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 0;
-}
-.speakerItem {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 6px;
-}
-.speakerName {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #374151;
-}
-.speakerMeta {
+/* Description */
+.sessionDesc {
   font-size: 0.75rem;
-  color: #9ca3af;
+  font-weight: 500;
+  color: rgba(18,35,69,0.58);
+  line-height: 1.55;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Speaker row */
+.speakerRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* Speaker chip */
+.speakerChip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  background: #f4f6fa;
+  border-radius: 999px;
+  padding: 4px 10px 4px 4px;
+  cursor: default;
+  transition: background .15s;
+}
+.speakerChip:hover,
+.speakerChip:focus { background: rgba(190,190,123,0.22); outline: none; }
+
+.speakerInitials {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #122345;
+  color: #fff;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  letter-spacing: 0.02em;
+}
+
+.speakerChipInfo {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.speakerChipName {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #122345;
+  white-space: nowrap;
+}
+.speakerChipMeta {
+  font-size: 0.63rem;
+  font-weight: 500;
+  color: rgba(18,35,69,0.45);
+  white-space: nowrap;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Bio tooltip */
+.speakerTooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 0;
+  width: 280px;
+  background: #fff;
+  border: 1.5px solid #bebe7b;
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 10px 32px rgba(18,35,69,0.16);
+  z-index: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .15s ease, transform .15s ease;
+  transform: translateY(4px);
+}
+.speakerChip:hover .speakerTooltip,
+.speakerChip:focus .speakerTooltip {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+.speakerTooltip strong {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #122345;
+  margin-bottom: 2px;
+}
+.ttTitle {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(18,35,69,0.6);
+  margin-bottom: 1px;
+}
+.ttOrg {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #6b6b2a;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 7px;
+}
+.ttBio {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: rgba(18,35,69,0.68);
+  line-height: 1.5;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 @media (max-width: 700px) {

@@ -1,71 +1,88 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  font-family: system-ui, sans-serif;
-  background: #f4f4f5;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
   min-height: 100vh;
-  padding: 2rem;
+  padding: 2rem 1.5rem 4rem;
 }
 
-.widget {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-  padding: 1.5rem;
-  width: 100%;
-  max-width: 480px;
+header {
+  text-align: center;
+  margin-bottom: 3rem;
 }
 
-.widget-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 1rem;
+header h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #f8fafc;
 }
 
-.agenda-list {
+.subtitle {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+#app {
+  max-width: 760px;
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 2.5rem;
 }
 
-.agenda-item {
+.day-header {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: #94a3b8;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid #1e293b;
+  margin-bottom: 0.75rem;
+}
+
+.blocks {
   display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.block {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: #1e293b;
   border-radius: 8px;
-  background: #f9fafb;
-  border-left: 3px solid #6366f1;
+  padding: 0.65rem 1rem;
 }
 
-.agenda-item .time {
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: #6b7280;
+.time {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #94a3b8;
   white-space: nowrap;
-  padding-top: 2px;
+  min-width: 130px;
+  font-variant-numeric: tabular-nums;
 }
 
-.agenda-item .details {
-  flex: 1;
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
-.agenda-item .title {
-  font-size: 0.9rem;
-  font-weight: 500;
-  color: #111827;
-}
-
-.agenda-item .subtitle {
-  font-size: 0.8rem;
-  color: #9ca3af;
-  margin-top: 2px;
+.pill {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #fff;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  opacity: 0.92;
+  white-space: nowrap;
 }

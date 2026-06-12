@@ -852,7 +852,6 @@ return;
 }
 
 let activeSpeakerTooltipChip = null;
-let pinnedSpeakerTooltipChip = null;
 
 function getSpeakerDetailsByName(name) {
   const slug = speakerSlug(name || "");
@@ -881,22 +880,31 @@ function updateSpeakerTooltipMoreButton(tooltip) {
   btn.hidden = !isClipped;
 }
 
+function isSpeakerTooltipPinned(chip) {
+  return chip?.dataset.tooltipPinned === "true";
+}
+
 function resetSessionSpeakerTooltip(chip) {
   if (!chip) return;
   chip.classList.remove("tooltipOpen");
   chip.setAttribute("aria-expanded", "false");
+  chip.dataset.tooltipPinned = "false";
   chip.querySelector(".speakerTooltip")?.remove();
-  if (pinnedSpeakerTooltipChip === chip) pinnedSpeakerTooltipChip = null;
 }
 
-function closeSessionSpeakerTooltips(exceptChip) {
-  if (activeSpeakerTooltipChip && activeSpeakerTooltipChip !== exceptChip) {
+function closeSessionSpeakerTooltips(exceptChip, includePinned = false) {
+  if (
+    activeSpeakerTooltipChip &&
+    activeSpeakerTooltipChip !== exceptChip &&
+    (includePinned || !isSpeakerTooltipPinned(activeSpeakerTooltipChip))
+  ) {
     resetSessionSpeakerTooltip(activeSpeakerTooltipChip);
     activeSpeakerTooltipChip = null;
   }
 
   document.querySelectorAll(".speakerChip.tooltipOpen").forEach(chip => {
     if (chip === exceptChip) return;
+    if (!includePinned && isSpeakerTooltipPinned(chip)) return;
     resetSessionSpeakerTooltip(chip);
   });
 
@@ -907,7 +915,7 @@ function showSpeakerTooltip(ev, chip) {
   if (ev) ev.stopPropagation();
   if (!chip) return;
 
-  closeSessionSpeakerTooltips(chip);
+  closeSessionSpeakerTooltips(chip, false);
   if (!chip.querySelector(".speakerTooltip")) {
     const sp = getSpeakerDetailsByName(chip.dataset.speakerName);
     chip.insertAdjacentHTML("beforeend", buildSpeakerTooltipHTML(sp));
@@ -927,9 +935,16 @@ function showSpeakerTooltip(ev, chip) {
   queueWidgetHeightPost();
 }
 
+function resetSpeakerTooltipsIn(root) {
+  root?.querySelectorAll(".speakerChip.tooltipOpen").forEach(chip => {
+    resetSessionSpeakerTooltip(chip);
+    if (activeSpeakerTooltipChip === chip) activeSpeakerTooltipChip = null;
+  });
+}
+
 function hideSpeakerTooltip(ev, chip) {
   if (ev) ev.stopPropagation();
-  if (pinnedSpeakerTooltipChip === chip) return;
+  if (isSpeakerTooltipPinned(chip)) return;
   resetSessionSpeakerTooltip(chip);
   if (activeSpeakerTooltipChip === chip) activeSpeakerTooltipChip = null;
   queueWidgetHeightPost();
@@ -939,7 +954,7 @@ function toggleSpeakerTooltipPin(ev, chip) {
   if (ev) ev.stopPropagation();
   if (!chip) return;
 
-  if (pinnedSpeakerTooltipChip === chip) {
+  if (isSpeakerTooltipPinned(chip)) {
     resetSessionSpeakerTooltip(chip);
     if (activeSpeakerTooltipChip === chip) activeSpeakerTooltipChip = null;
     queueWidgetHeightPost();
@@ -947,11 +962,11 @@ function toggleSpeakerTooltipPin(ev, chip) {
   }
 
   showSpeakerTooltip(ev, chip);
-  pinnedSpeakerTooltipChip = chip;
+  chip.dataset.tooltipPinned = "true";
 }
 
 function handleSpeakerTooltipFocusOut(ev, chip) {
-  if (pinnedSpeakerTooltipChip === chip) return;
+  if (isSpeakerTooltipPinned(chip)) return;
   if (chip?.contains(ev.relatedTarget)) return;
   hideSpeakerTooltip(ev, chip);
 }
@@ -983,7 +998,7 @@ function expandSpeakerTooltip(ev, btn) {
 
 document.addEventListener("click", () => closeSessionSpeakerTooltips());
 document.addEventListener("keydown", (ev) => {
-  if (ev.key === "Escape") closeSessionSpeakerTooltips();
+  if (ev.key === "Escape") closeSessionSpeakerTooltips(null, true);
 });
 
 function buildSessionsHTML(blockKey) {
@@ -1072,6 +1087,7 @@ function togglePanel(blockWrap, forceOpen) {
       const prevChev = openBlockEl.querySelector(".chevron");
       if (prev) prev.hidden = true;
       if (prevChev) prevChev.classList.remove("open");
+      resetSpeakerTooltipsIn(openBlockEl);
       openBlockEl.querySelector(".timeRow")?.classList.remove("block--open");
     }
     panel.hidden = false;
@@ -1081,6 +1097,7 @@ function togglePanel(blockWrap, forceOpen) {
   } else {
     panel.hidden = true;
     chevron?.classList.remove("open");
+    resetSpeakerTooltipsIn(blockWrap);
     blockWrap.querySelector(".timeRow")?.classList.remove("block--open");
     if (openBlockEl === blockWrap) openBlockEl = null;
   }

@@ -480,73 +480,103 @@ function buildSpeakerIndex() {
   });
 }
 
+let cachedSpeakers = [];
+let currentSort = "az";
+
 function renderSpeakerView() {
-  const speakers = buildSpeakerIndex();
+  cachedSpeakers = buildSpeakerIndex();
+  if (currentSort === "za") cachedSpeakers = [...cachedSpeakers].reverse();
+
   const grid = document.getElementById("speakerGrid");
 
-  const cards = speakers.map(sp => {
+  const cards = cachedSpeakers.map(sp => {
     const slug = speakerSlug(sp.name);
     const initials = sp.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
     const avatar = sp.photo
       ? `<img class="spAvatar" src="${esc(sp.photo)}" alt="${esc(sp.name)}" loading="lazy">`
       : `<div class="spAvatarInitials">${initials}</div>`;
-    const popupAvatar = sp.photo
-      ? `<img class="spPopupPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}" loading="lazy">`
-      : `<div class="spPopupInitials">${initials}</div>`;
-
-    const sessionTags = sp.sessions.map(sess =>
-      `<button class="spPopupSession" onclick="navigateToSession('${esc(sess.blockKey)}','${esc(sess.code)}')">${esc(sess.name)}</button>`
-    ).join("");
 
     return `
-      <div class="spCard" id="sp-${slug}" tabindex="0">
+      <div class="spCard" id="sp-${slug}" onclick="openSpeakerModal('${slug}')">
         ${avatar}
         <div class="spCardName">${esc(sp.name)}</div>
+        ${sp.title ? `<div class="spCardTitle">${esc(sp.title)}</div>` : ""}
         ${sp.org ? `<div class="spCardOrg">${esc(sp.org)}</div>` : ""}
-        <div class="spPopup">
-          <div class="spPopupHeader">
-            ${popupAvatar}
-            <div>
-              <div class="spPopupName">${esc(sp.name)}</div>
-              ${sp.title ? `<div class="spPopupTitle">${esc(sp.title)}</div>` : ""}
-              ${sp.org ? `<div class="spPopupOrg">${esc(sp.org)}</div>` : ""}
-            </div>
-          </div>
-          ${sp.bio ? `<p class="spPopupBio">${esc(sp.bio)}</p>` : ""}
-          ${sp.sessions.length ? `<div class="spPopupSessionsLabel">Sessions</div>${sessionTags}` : ""}
-        </div>
       </div>`;
   }).join("");
 
   grid.innerHTML = `
-    <div class="spGridHeader">${speakers.length} speakers — alphabetical by last name</div>
+    <div class="spControls">
+      <div class="spSortGroup">
+        <button class="spSortBtn${currentSort === "az" ? " active" : ""}" onclick="setSpeakerSort('az')">A → Z</button>
+        <button class="spSortBtn${currentSort === "za" ? " active" : ""}" onclick="setSpeakerSort('za')">Z → A</button>
+      </div>
+    </div>
     <div class="spCards">${cards}</div>
   `;
 }
 
+function setSpeakerSort(dir) {
+  currentSort = dir;
+  renderSpeakerView();
+  queueWidgetHeightPost();
+}
+
+function openSpeakerModal(slug) {
+  const sp = cachedSpeakers.find(s => speakerSlug(s.name) === slug);
+  if (!sp) return;
+  const initials = sp.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  const avatar = sp.photo
+    ? `<img class="spModalPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
+    : `<div class="spModalInitials">${initials}</div>`;
+
+  const sessionButtons = sp.sessions.map(sess =>
+    `<button class="spModalSession" onclick="navigateToSession('${esc(sess.blockKey)}','${esc(sess.code)}')">${esc(sess.name)}</button>`
+  ).join("");
+
+  document.getElementById("spModalBody").innerHTML = `
+    <div class="spModalHeader">
+      ${avatar}
+      <div>
+        <div class="spModalName">${esc(sp.name)}</div>
+        ${sp.title ? `<div class="spModalTitle">${esc(sp.title)}</div>` : ""}
+        ${sp.org ? `<div class="spModalOrg">${esc(sp.org)}</div>` : ""}
+      </div>
+    </div>
+    ${sp.bio ? `<p class="spModalBio">${esc(sp.bio)}</p>` : ""}
+    ${sp.sessions.length ? `<div class="spModalSessionsLabel">Sessions</div>${sessionButtons}` : ""}
+  `;
+
+  const overlay = document.getElementById("spModalOverlay");
+  overlay.style.display = "flex";
+  queueWidgetHeightPost();
+}
+
+function closeSpeakerModal() {
+  document.getElementById("spModalOverlay").style.display = "none";
+  queueWidgetHeightPost();
+}
+
 function toggleSpeakerView() {
   inSpeakerView = !inSpeakerView;
-  const agendaGrid = document.getElementById("agendaGrid");
-  const speakerGrid = document.getElementById("speakerGrid");
-  const btn = document.getElementById("speakerViewBtn");
+  const agendaGrid   = document.getElementById("agendaGrid");
+  const speakerGrid  = document.getElementById("speakerGrid");
+  const btn          = document.getElementById("speakerViewBtn");
   const expandControls = document.getElementById("expandControls");
-  const skillNote = document.getElementById("skillNote");
+  const skillNote    = document.getElementById("skillNote");
 
   if (inSpeakerView) {
-    agendaGrid.style.display = "none";
-    expandControls.style.visibility = "hidden";
-    skillNote.style.display = "none";
-    speakerGrid.style.display = "";
+    agendaGrid.style.display   = "none";
+    expandControls.style.display = "none";
+    skillNote.style.display    = "none";
+    speakerGrid.style.display  = "";
     btn.classList.add("active");
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg> Session view`;
     renderSpeakerView();
   } else {
-    speakerGrid.style.display = "none";
-    agendaGrid.style.display = "";
-    expandControls.style.visibility = "";
+    speakerGrid.style.display  = "none";
+    agendaGrid.style.display   = "";
+    expandControls.style.display = "";
     btn.classList.remove("active");
-    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="19" cy="9" r="3"/><path d="M22 21v-1a3 3 0 0 0-3-3h-1"/></svg> Speaker view`;
-    // Re-show skillNote if on day1
     const activeDay = document.querySelector(".dayBtn.active")?.dataset.day;
     if (activeDay === "day1") skillNote.style.display = "";
   }
@@ -597,19 +627,16 @@ function navigateToSession(blockKey, sessionCode) {
 function navigateToSpeaker(name) {
   if (!inSpeakerView) toggleSpeakerView();
   const slug = speakerSlug(name);
-  const card = document.getElementById(`sp-${slug}`);
-  if (!card) return;
   requestAnimationFrame(() => {
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.remove("highlighted");
-    void card.offsetWidth;
-    card.classList.add("highlighted");
-    // Show popup for a few seconds
-    card.classList.add("popup-open");
-    setTimeout(() => {
-      card.classList.remove("popup-open");
+    const card = document.getElementById(`sp-${slug}`);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
       card.classList.remove("highlighted");
-    }, 4000);
+      void card.offsetWidth;
+      card.classList.add("highlighted");
+      setTimeout(() => card.classList.remove("highlighted"), 2800);
+    }
+    openSpeakerModal(slug);
   });
 }
 
@@ -634,15 +661,14 @@ function buildSessionsHTML(blockKey) {
                 const avatar = sp.photo
                   ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
                   : `<div class="speakerInitials">${initials}</div>`;
-                const learnMore = `<button class="ttLearnMore" onclick="navigateToSpeaker('${esc(sp.name)}')">View speaker profile ↗</button>`;
                 return `
-                <div class="speakerChip" tabindex="0">
+                <div class="speakerChip" tabindex="0" onclick="navigateToSpeaker('${esc(sp.name)}')" title="Click to view speaker profile">
                   ${avatar}
                   <div class="speakerChipInfo">
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
-                  <div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}${sp.bio ? `<p class="ttBio">${esc(sp.bio)}</p>` : ""}${learnMore}</div>
+                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p></div>` : ""}
                 </div>`;
               }).join("")}
             </div>` : ""}
@@ -774,6 +800,14 @@ function render(day) {
 // ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
 document.querySelectorAll(".dayBtn").forEach(btn => {
   btn.addEventListener("click", () => {
+    // Exit speaker view if active
+    if (inSpeakerView) {
+      inSpeakerView = false;
+      document.getElementById("speakerGrid").style.display = "none";
+      document.getElementById("agendaGrid").style.display = "";
+      document.getElementById("expandControls").style.display = "";
+      document.getElementById("speakerViewBtn").classList.remove("active");
+    }
     document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");
     render(btn.dataset.day);

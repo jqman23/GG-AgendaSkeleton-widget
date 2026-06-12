@@ -190,19 +190,43 @@ body {
   transform: translateY(-1px);
 }
 
-/* ── View controls bar ────────────────────────────────────── */
-.viewControls {
+/* ── Day toggle pipe separator ────────────────────────────── */
+.daySep {
+  color: rgba(18,35,69,0.2);
+  font-size: 1.1rem;
+  font-weight: 300;
+  align-self: center;
+  margin: 0 2px;
+  user-select: none;
+}
+
+/* ── Speaker view button (matches dayBtn style) ───────────── */
+.speakerViewBtn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-  gap: 10px;
+  gap: 6px;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: #ffffff;
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  font-weight: 600;
+  font-size: 1em;
+  color: #122345;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.08);
+  transition: all .2s ease;
+  white-space: nowrap;
 }
+.speakerViewBtn:hover { transform: translateY(-2px); }
+.speakerViewBtn.active { background: #122345; color: #fff; }
+.speakerViewBtn.active svg { stroke: #fff; }
 
 /* ── Expand / Collapse toggle ─────────────────────────────── */
 .expandControls {
   display: flex;
   gap: 8px;
+  margin-bottom: 14px;
 }
 .expandBtn {
   border: none;
@@ -217,28 +241,6 @@ body {
   transition: all .2s ease;
 }
 .expandBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.10); }
-
-/* ── Speaker view button ──────────────────────────────────── */
-.speakerViewBtn {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  border: 1.5px solid rgba(18,35,69,0.15);
-  padding: 7px 16px;
-  border-radius: 50px;
-  background: #ffffff;
-  cursor: pointer;
-  font-family: "Montserrat", sans-serif;
-  font-weight: 700;
-  font-size: 0.78rem;
-  color: #122345;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.07);
-  transition: all .2s ease;
-  white-space: nowrap;
-}
-.speakerViewBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.10); border-color: #122345; }
-.speakerViewBtn.active { background: #122345; color: #fff; border-color: #122345; }
-.speakerViewBtn.active svg { stroke: #fff; }
 
 /* ── Skill note banner ────────────────────────────────────── */
 .skillNote {
@@ -409,7 +411,7 @@ body {
   background: #f4f6fa;
   border-radius: 999px;
   padding: 4px 10px 4px 4px;
-  cursor: default;
+  cursor: pointer;
   transition: background .15s;
 }
 .speakerChip:hover,
@@ -476,7 +478,6 @@ body {
 .speakerChip:hover .speakerTooltip,
 .speakerChip:focus .speakerTooltip {
   opacity: 1;
-  pointer-events: auto;
   transform: translateY(0);
 }
 .speakerTooltip strong {
@@ -513,21 +514,6 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.ttLearnMore {
-  border: none;
-  background: none;
-  font-family: "Montserrat", sans-serif;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #187089;
-  cursor: pointer;
-  padding: 0;
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  transition: color .15s;
-}
-.ttLearnMore:hover { color: #122345; }
 
 /* ── Session card highlight (navigated from speaker view) ─── */
 @keyframes sessionCardPulse {
@@ -542,47 +528,61 @@ body {
 }
 
 /* ── Speaker grid ─────────────────────────────────────────── */
-#speakerGrid {
-  padding: 4px 0;
+#speakerGrid { padding: 4px 0; }
+
+.spControls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 8px;
 }
-.spGridHeader {
+.spSortGroup {
+  display: flex;
+  gap: 6px;
+}
+.spSortBtn {
+  border: 1.5px solid rgba(18,35,69,0.12);
+  padding: 5px 13px;
+  border-radius: 8px;
+  background: #fff;
+  font-family: "Montserrat", sans-serif;
   font-size: 0.72rem;
   font-weight: 700;
-  color: rgba(18,35,69,0.4);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 14px;
+  color: rgba(18,35,69,0.45);
+  cursor: pointer;
+  transition: all .15s;
 }
+.spSortBtn.active { background: #122345; color: #fff; border-color: #122345; }
+.spSortBtn:not(.active):hover { border-color: #122345; color: #122345; }
+
 .spCards {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
 }
 
-/* ── Speaker card (small) ─────────────────────────────────── */
+/* ── Speaker card ─────────────────────────────────────────── */
 .spCard {
   background: #fff;
   border-radius: 12px;
   border: 1.5px solid rgba(18,35,69,0.07);
-  padding: 14px 10px 12px;
+  padding: 16px 10px 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 5px;
   text-align: center;
-  cursor: default;
-  position: relative;
+  cursor: pointer;
   transition: box-shadow .18s, border-color .18s, transform .18s;
-  overflow: visible;
 }
-.spCard:hover, .spCard:focus-within {
+.spCard:hover {
   box-shadow: 0 6px 20px rgba(18,35,69,0.10);
   border-color: rgba(18,35,69,0.15);
   transform: translateY(-2px);
-  z-index: 10;
 }
 
-/* Speaker card highlight (navigated from session view) */
 @keyframes spCardPulse {
   0%   { border-color: rgba(18,35,69,0.07); box-shadow: none; }
   20%  { border-color: #187089; box-shadow: 0 0 0 4px rgba(24,112,137,0.25); }
@@ -590,35 +590,35 @@ body {
   80%  { border-color: #187089; box-shadow: 0 0 0 4px rgba(24,112,137,0.22); }
   100% { border-color: rgba(18,35,69,0.07); box-shadow: none; }
 }
-.spCard.highlighted {
-  animation: spCardPulse 2.8s ease forwards;
-}
+.spCard.highlighted { animation: spCardPulse 2.8s ease forwards; }
 
 .spAvatar {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #e8eaed;
   background: #e8eaed;
   flex-shrink: 0;
+  margin-bottom: 2px;
 }
 .spAvatarInitials {
-  width: 48px;
-  height: 48px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: #122345;
   color: #fff;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   letter-spacing: 0.02em;
+  margin-bottom: 2px;
 }
 .spCardName {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #122345;
   line-height: 1.25;
@@ -628,168 +628,161 @@ body {
   overflow: hidden;
   width: 100%;
 }
-.spCardOrg {
+.spCardTitle {
   font-size: 0.62rem;
+  font-weight: 600;
+  color: #187089;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  width: 100%;
+}
+.spCardOrg {
+  font-size: 0.6rem;
   font-weight: 500;
-  color: rgba(18,35,69,0.45);
+  color: #888;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   width: 100%;
 }
 
-/* ── Speaker popup (hover card) ───────────────────────────── */
-.spPopup {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%) translateY(6px);
-  width: 270px;
+/* ── Speaker modal ────────────────────────────────────────── */
+.spModalOverlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.48);
+  z-index: 9999;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.spModal {
   background: #fff;
-  border: 1.5px solid #bebe7b;
-  border-radius: 14px;
-  padding: 14px 16px;
-  box-shadow: 0 10px 32px rgba(18,35,69,0.18);
-  z-index: 500;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .18s ease, transform .18s ease;
-  text-align: left;
+  border-radius: 18px;
+  padding: 28px 28px 24px;
+  max-width: 500px;
+  width: 100%;
+  max-height: 85vh;
+  overflow-y: auto;
+  position: relative;
+  box-shadow: 0 24px 64px rgba(18,35,69,0.28);
 }
-.spCard:hover .spPopup,
-.spCard:focus-within .spPopup,
-.spCard.popup-open .spPopup {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateX(-50%) translateY(0);
-}
-.spPopupHeader {
+.spModalClose {
+  position: sticky;
+  float: right;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border: none;
+  background: rgba(18,35,69,0.07);
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: #122345;
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  justify-content: center;
+  transition: background .15s;
+  flex-shrink: 0;
+  margin-left: 12px;
+  margin-bottom: 4px;
 }
-.spPopupPhoto {
-  width: 40px;
-  height: 40px;
+.spModalClose:hover { background: rgba(18,35,69,0.14); }
+.spModalHeader {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.spModalPhoto {
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   object-fit: cover;
   border: 2px solid #e8eaed;
   background: #e8eaed;
   flex-shrink: 0;
 }
-.spPopupInitials {
-  width: 40px;
-  height: 40px;
+.spModalInitials {
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   background: #122345;
   color: #fff;
-  font-size: 0.7rem;
+  font-size: 1.05rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  letter-spacing: 0.02em;
 }
-.spPopupName {
-  font-size: 0.82rem;
+.spModalName {
+  font-size: 1.05rem;
   font-weight: 700;
   color: #122345;
   line-height: 1.2;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
 }
-.spPopupTitle {
-  font-size: 0.68rem;
+.spModalTitle {
+  font-size: 0.8rem;
   font-weight: 600;
-  color: rgba(18,35,69,0.6);
-  line-height: 1.3;
+  color: #187089;
+  line-height: 1.35;
+  margin-bottom: 4px;
 }
-.spPopupOrg {
-  font-size: 0.65rem;
+.spModalOrg {
+  font-size: 0.72rem;
   font-weight: 700;
   color: #6b6b2a;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  margin-top: 2px;
 }
-.spPopupBio {
-  font-size: 0.7rem;
-  font-weight: 500;
+.spModalBio {
+  font-size: 0.82rem;
+  line-height: 1.7;
   color: rgba(18,35,69,0.68);
-  line-height: 1.5;
-  margin: 0 0 10px;
-  display: -webkit-box;
-  -webkit-line-clamp: 5;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  margin-bottom: 20px;
+  white-space: pre-line;
 }
-.spPopupSessionsLabel {
-  font-size: 0.6rem;
+.spModalSessionsLabel {
+  font-size: 0.62rem;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-transform: uppercase;
-  color: rgba(18,35,69,0.4);
-  margin-bottom: 5px;
+  color: rgba(18,35,69,0.38);
+  margin-bottom: 8px;
 }
-.spPopupSession {
+.spModalSession {
   display: block;
   width: 100%;
   background: #f4f6fa;
   border: none;
-  border-radius: 8px;
-  padding: 7px 10px;
+  border-radius: 10px;
+  padding: 11px 14px;
   font-family: "Montserrat", sans-serif;
-  font-size: 0.72rem;
+  font-size: 0.8rem;
   font-weight: 700;
   color: #122345;
   text-align: left;
   cursor: pointer;
   transition: background .15s;
-  margin-bottom: 4px;
-  line-height: 1.3;
+  margin-bottom: 6px;
+  line-height: 1.35;
 }
-.spPopupSession:last-child { margin-bottom: 0; }
-.spPopupSession:hover { background: rgba(190,190,123,0.2); }
+.spModalSession:last-child { margin-bottom: 0; }
+.spModalSession:hover { background: rgba(190,190,123,0.25); }
 
-@media (max-width: 900px) {
-  .spCards { grid-template-columns: repeat(4, 1fr); }
-}
-@media (max-width: 700px) {
-  .spCards { grid-template-columns: repeat(3, 1fr); }
-}
+@media (max-width: 900px) { .spCards { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 650px) { .spCards { grid-template-columns: repeat(3, 1fr); } }
 
 @media (max-width: 700px) {
-  .timeRow {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  .timeLabel {
-    padding-left: 4px;
-  }
-  .tzSelector {
-    width: 100%;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .tzSelector select {
-    width: 100%;
-    max-width: 100%;
-  }
-}
-  .timeRow {
-    grid-template-columns: 1fr;
-    gap: 6px;
-  }
-  .timeLabel {
-    padding-left: 4px;
-  }
-  .tzSelector {
-    width: 100%;
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .tzSelector select {
-    width: 100%;
-    max-width: 100%;
-  }
+  .timeRow { grid-template-columns: 1fr; gap: 6px; }
+  .timeLabel { padding-left: 4px; }
+  .tzSelector { width: 100%; align-items: flex-start; flex-direction: column; }
+  .tzSelector select { width: 100%; max-width: 100%; }
 }

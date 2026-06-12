@@ -18,6 +18,11 @@
         <button class="dayBtn active" data-day="day1">Oct 6 • Skill Building Institutes</button>
         <button class="dayBtn" data-day="day2">Oct 7 • The Global Gathering</button>
         <button class="dayBtn" data-day="day3">Oct 8 • The Global Gathering</button>
+        <span class="daySep">|</span>
+        <button class="speakerViewBtn" id="speakerViewBtn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="19" cy="9" r="3"/><path d="M22 21v-1a3 3 0 0 0-3-3h-1"/></svg>
+          Speakers
+        </button>
       </div>
 
       <div class="tzSelector">
@@ -30,14 +35,8 @@
       </div>
     </div>
 
-    <div class="viewControls">
-      <div class="expandControls" id="expandControls">
-        <button class="expandBtn" id="toggleAllBtn">Expand all</button>
-      </div>
-      <button class="speakerViewBtn" id="speakerViewBtn">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="19" cy="9" r="3"/><path d="M22 21v-1a3 3 0 0 0-3-3h-1"/></svg>
-        Speaker view
-      </button>
+    <div class="expandControls" id="expandControls">
+      <button class="expandBtn" id="toggleAllBtn">Expand all</button>
     </div>
 
     <div id="skillNote" class="skillNote" style="display:none">
@@ -47,6 +46,14 @@
 
     <div id="agendaGrid"></div>
     <div id="speakerGrid" style="display:none"></div>
+  </div>
+
+  <!-- Speaker modal -->
+  <div id="spModalOverlay" class="spModalOverlay" onclick="if(event.target===this)closeSpeakerModal()">
+    <div class="spModal">
+      <button class="spModalClose" onclick="closeSpeakerModal()">&#x2715;</button>
+      <div id="spModalBody"></div>
+    </div>
   </div>
 </body>
 </html>

@@ -651,6 +651,7 @@ function openSpeakerModal(slug) {
   `;
 
   const overlay = document.getElementById("spModalOverlay");
+  overlay.style.top = window.scrollY + "px";
   overlay.style.display = "flex";
   queueWidgetHeightPost();
 }

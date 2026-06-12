@@ -735,13 +735,16 @@ body {
 /* ── Speaker modal ────────────────────────────────────────── */
 .spModalOverlay {
   display: none;
-  position: fixed;
-  inset: 0;
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 100vh;
   background: rgba(0,0,0,0.48);
   z-index: 9999;
   align-items: center;
   justify-content: center;
   padding: 24px 16px;
+  box-sizing: border-box;
 }
 .spModal {
   background: #fff;

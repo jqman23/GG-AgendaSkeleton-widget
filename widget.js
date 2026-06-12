@@ -135,11 +135,11 @@ window.addEventListener("message", function(e) {
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
 // the modal box is placed at a vertical anchor (document coords):
-//   • anchorEl given (a speaker card the user clicked) → center on that card. It is
-//     on-screen by definition, so this needs NO parent scroll metrics — this is what
-//     makes speaker-view clicks reliable deep in a long, scrolled list.
-//   • no anchorEl (navigated from a session chip) → center on the visible viewport
-//     reported by the parent, since the freshly-rendered card may be off-screen.
+//   • anchorEl given (a speaker card the user clicked or navigated to) → center
+//     on that card. The card and modal move together as the parent scrolls, so
+//     this does not depend on possibly stale parent viewport metrics.
+//   • no anchorEl (fallback) → center on the visible viewport reported by the
+//     parent.
 function positionModalOverlay(anchorEl) {
   const overlay = document.getElementById("spModalOverlay");
   if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
@@ -818,9 +818,16 @@ function navigateToSpeaker(name) {
       void card.offsetWidth;
       card.classList.add("highlighted");
       setTimeout(() => card.classList.remove("highlighted"), 2800);
+
+      // When coming from a session card, the parent-page viewport metrics can
+      // still describe the old agenda position (or be missing entirely). Anchor
+      // the modal to the newly revealed speaker card instead, matching the
+      // behavior of clicking a speaker directly inside speaker view.
+      openSpeakerModal(slug, card);
+      return;
     }
-    // Don't anchor to card here — smooth scroll hasn't completed so the card
-    // is still off-screen. Viewport centering (parentScrollTop + vh/2) is correct.
+
+    // Fallback for unexpected missing cards: use parent metrics if available.
     openSpeakerModal(slug);
   });
 }

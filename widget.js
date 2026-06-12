@@ -819,7 +819,9 @@ function navigateToSpeaker(name) {
       card.classList.add("highlighted");
       setTimeout(() => card.classList.remove("highlighted"), 2800);
     }
-    openSpeakerModal(slug, card || undefined);
+    // Don't anchor to card here — smooth scroll hasn't completed so the card
+    // is still off-screen. Viewport centering (parentScrollTop + vh/2) is correct.
+    openSpeakerModal(slug);
   });
 }
 

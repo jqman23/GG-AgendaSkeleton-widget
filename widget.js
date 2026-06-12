@@ -108,16 +108,43 @@ function getSessionSub(type) {
   return subs[type] || "";
 }
 
-// ─── PARENT SCROLL TRACKING ──────────────────────────────────────────────────
-// The parent Cvent page posts { ggScrollTop: N } (pixels from iframe top to
-// viewport top) on every scroll event. We use it to position the modal overlay
-// so it always appears in the visible viewport, not the document center.
-let parentScrollTop = 0;
+// ─── PARENT VIEWPORT TRACKING ────────────────────────────────────────────────
+// This widget runs in a cross-origin iframe (Vercel) embedded in Cvent. Because
+// the iframe is scrolling="no" and sized to its full content height, the iframe
+// has NO viewport of its own — `position:fixed` and `vh` units resolve against
+// the entire document, not the visible screen. So we can't center a modal on
+// our own. The parent page posts the visible region on every scroll/resize:
+//   ggScrollTop      = pixels from the iframe's top edge down to where the
+//                      visible viewport begins (in iframe-document coords)
+//   ggViewportHeight = height of the visible viewport in pixels
+// We use these to lay the modal overlay exactly over what the user can see.
+let parentScrollTop  = 0;
+let parentViewportH  = 0;
+let hasParentMetrics = false;
+
 window.addEventListener("message", function(e) {
-  if (e.data && typeof e.data.ggScrollTop === "number") {
-    parentScrollTop = e.data.ggScrollTop;
+  if (!e.data || typeof e.data.ggScrollTop !== "number") return;
+  parentScrollTop = e.data.ggScrollTop;
+  if (typeof e.data.ggViewportHeight === "number" && e.data.ggViewportHeight > 0) {
+    parentViewportH = e.data.ggViewportHeight;
   }
+  hasParentMetrics = true;
+  positionModalOverlay(); // keep an open modal pinned to the viewport while scrolling
 });
+
+// Position the speaker-modal overlay over the currently visible viewport region.
+function positionModalOverlay() {
+  const overlay = document.getElementById("spModalOverlay");
+  if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
+  if (hasParentMetrics) {
+    overlay.style.top    = parentScrollTop + "px";
+    overlay.style.height = (parentViewportH || 600) + "px";
+  } else {
+    // Standalone (not embedded) — native scroll works, fixed-style fallback
+    overlay.style.top    = window.scrollY + "px";
+    overlay.style.height = window.innerHeight + "px";
+  }
+}
 
 // ─── IFRAME HEIGHT SYNC ──────────────────────────────────────────────────────
 // Cvent embeds this page in an iframe and listens for { ggWidgetHeight }.
@@ -662,8 +689,11 @@ function openSpeakerModal(slug) {
   `;
 
   const overlay = document.getElementById("spModalOverlay");
-  overlay.style.top = parentScrollTop + "px";
   overlay.style.display = "flex";
+  positionModalOverlay();
+  // Ask the parent for fresh viewport metrics in case nothing has scrolled yet;
+  // the response arrives via postMessage and re-runs positionModalOverlay().
+  if (window.parent !== window) window.parent.postMessage({ ggRequestMetrics: true }, "*");
   queueWidgetHeightPost();
 }
 

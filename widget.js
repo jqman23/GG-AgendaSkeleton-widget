@@ -831,19 +831,18 @@ function navigateToSpeaker(name) {
   requestAnimationFrame(() => {
     const card = document.getElementById(`sp-${slug}`);
     if (card) {
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
-      card.classList.remove("highlighted");
-      void card.offsetWidth;
-      card.classList.add("highlighted");
-      setTimeout(() => card.classList.remove("highlighted"), 2800);
+card.classList.remove("highlighted");
+void card.offsetWidth;
+card.classList.add("highlighted");
+setTimeout(() => card.classList.remove("highlighted"), 2800);
 
-      // When coming from a session card, the parent-page viewport metrics can
-      // still describe the old agenda position (or be missing entirely). Anchor
-      // the modal to the newly revealed speaker card instead, matching the
-      // behavior of clicking a speaker directly inside speaker view.
-      openSpeakerModal(slug, card);
-      return;
-    }
+// Important for Cvent iframe:
+// do NOT anchor the modal to the speaker card here.
+// In Cvent, the parent page does not scroll when iframe content calls scrollIntoView,
+// so anchoring to the card puts the modal wherever the card is inside the long iframe.
+// Open unanchored so positionModalOverlay() centers it in the visible parent viewport.
+openSpeakerModal(slug);
+return;
 
     // Fallback for unexpected missing cards: use parent metrics if available.
     openSpeakerModal(slug);

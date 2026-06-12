@@ -122,6 +122,19 @@ let parentScrollTop  = 0;
 let parentViewportH  = 0;
 let hasParentMetrics = false;
 let modalAnchorEl    = null; // element the open modal is anchored to (a speaker card)
+let pendingMetricsCallbacks = [];
+
+function requestParentMetrics(onMetrics) {
+  if (typeof onMetrics === "function") {
+    pendingMetricsCallbacks.push(onMetrics);
+  }
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ ggRequestMetrics: true }, "*");
+  } else if (typeof onMetrics === "function") {
+    window.requestAnimationFrame(onMetrics);
+  }
+}
 
 window.addEventListener("message", function(e) {
   if (!e.data || typeof e.data.ggScrollTop !== "number") return;
@@ -130,16 +143,21 @@ window.addEventListener("message", function(e) {
     parentViewportH = e.data.ggViewportHeight;
   }
   hasParentMetrics = true;
+
+  const callbacks = pendingMetricsCallbacks;
+  pendingMetricsCallbacks = [];
+  callbacks.forEach(cb => cb());
+
   positionModalOverlay(modalAnchorEl); // keep an open modal pinned while scrolling
 });
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
 // the modal box is placed at a vertical anchor (document coords):
-//   • anchorEl given (a speaker card the user clicked) → center on that card. It is
-//     on-screen by definition, so this needs NO parent scroll metrics — this is what
-//     makes speaker-view clicks reliable deep in a long, scrolled list.
-//   • no anchorEl (navigated from a session chip) → center on the visible viewport
-//     reported by the parent, since the freshly-rendered card may be off-screen.
+//   • anchorEl given (a speaker card the user clicked in speaker view) → center
+//     on that visible card. The card and modal move together as the parent scrolls.
+//   • no anchorEl (fallback) → center on the visible viewport reported by the
+//     parent embed script. In Cvent's no-scroll iframe, this keeps modals
+//     centered in the part of the widget the user can actually see.
 function positionModalOverlay(anchorEl) {
   const overlay = document.getElementById("spModalOverlay");
   if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
@@ -713,8 +731,8 @@ function openSpeakerModal(slug, ev) {
 
   const overlay = document.getElementById("spModalOverlay");
   overlay.style.display = "block";
-  // anchorEl can be an Event (speaker-card click), an Element (navigateToSpeaker),
-  // or null (unknown). In all cases we want a DOM element to anchor to.
+  // anchorEl can be an Event (speaker-card click), an Element, or null
+  // (unknown). In all cases we want a DOM element to anchor to when available.
   let anchorEl;
   if (ev instanceof Element) {
     anchorEl = ev;
@@ -724,7 +742,7 @@ function openSpeakerModal(slug, ev) {
   positionModalOverlay(anchorEl);
   // Ask the parent for fresh viewport metrics in case nothing has scrolled yet;
   // the response arrives via postMessage and re-runs positionModalOverlay().
-  if (window.parent !== window) window.parent.postMessage({ ggRequestMetrics: true }, "*");
+  requestParentMetrics();
   queueWidgetHeightPost();
 }
 
@@ -807,23 +825,54 @@ function navigateToSession(blockKey, sessionCode) {
   });
 }
 
-function navigateToSpeaker(name) {
-  if (!inSpeakerView) toggleSpeakerView();
-  const slug = speakerSlug(name);
-  requestAnimationFrame(() => {
-    const card = document.getElementById(`sp-${slug}`);
-    if (card) {
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
-      card.classList.remove("highlighted");
-      void card.offsetWidth;
-      card.classList.add("highlighted");
-      setTimeout(() => card.classList.remove("highlighted"), 2800);
+function closeSessionSpeakerTooltips(exceptChip) {
+  document.querySelectorAll(".speakerChip.tooltipOpen").forEach(chip => {
+    if (chip === exceptChip) return;
+    chip.classList.remove("tooltipOpen");
+    chip.setAttribute("aria-expanded", "false");
+
+    const tooltip = chip.querySelector(".speakerTooltip");
+    const moreBtn = chip.querySelector(".ttMoreBtn");
+    tooltip?.classList.remove("tooltipExpanded");
+    if (moreBtn) {
+      moreBtn.textContent = "See more info";
+      moreBtn.setAttribute("aria-expanded", "false");
     }
-    // Don't anchor to card here — smooth scroll hasn't completed so the card
-    // is still off-screen. Viewport centering (parentScrollTop + vh/2) is correct.
-    openSpeakerModal(slug);
   });
 }
+
+function toggleSpeakerTooltip(ev, chip) {
+  if (ev) ev.stopPropagation();
+  if (!chip) return;
+
+  const isOpen = chip.classList.contains("tooltipOpen");
+  closeSessionSpeakerTooltips(chip);
+  chip.classList.toggle("tooltipOpen", !isOpen);
+  chip.setAttribute("aria-expanded", isOpen ? "false" : "true");
+}
+
+function expandSpeakerTooltip(ev, btn) {
+  if (ev) ev.stopPropagation();
+  const tooltip = btn?.closest(".speakerTooltip");
+  const chip = btn?.closest(".speakerChip");
+  if (!tooltip || !btn) return;
+
+  tooltip.classList.toggle("tooltipExpanded");
+  const isExpanded = tooltip.classList.contains("tooltipExpanded");
+  btn.textContent = isExpanded ? "Show less" : "See more info";
+  btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+
+  if (chip) {
+    chip.classList.add("tooltipOpen");
+    chip.setAttribute("aria-expanded", "true");
+  }
+  queueWidgetHeightPost();
+}
+
+document.addEventListener("click", () => closeSessionSpeakerTooltips());
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") closeSessionSpeakerTooltips();
+});
 
 function buildSessionsHTML(blockKey) {
   const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
@@ -862,13 +911,13 @@ function buildSessionsHTML(blockKey) {
                   ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
                   : `<div class="speakerInitials">${initials}</div>`;
                 return `
-                <div class="speakerChip" tabindex="0" onclick="navigateToSpeaker('${esc(sp.name)}')" title="Click to view speaker profile">
+                <div class="speakerChip" tabindex="0" onclick="toggleSpeakerTooltip(event,this)" onkeydown="if(event.key==='Enter'||event.key===' '){toggleSpeakerTooltip(event,this)}" aria-expanded="false" title="Hover for speaker info">
                   ${avatar}
                   <div class="speakerChipInfo">
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
-                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><span class="ttClickHint">Click to open full profile</span></div>` : ""}
+                  ${sp.bio ? `<div class="speakerTooltip" onclick="event.stopPropagation()"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><button type="button" class="ttMoreBtn" aria-expanded="false" onclick="expandSpeakerTooltip(event,this)">See more info</button></div>` : ""}
                 </div>`;
               }).join("")}
             </div>` : ""}

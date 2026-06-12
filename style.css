@@ -521,9 +521,11 @@ body {
 /* Bio tooltip */
 .speakerTooltip {
   position: absolute;
-  bottom: calc(100% + 10px);
+  bottom: 100%;
   left: 0;
-  width: 280px;
+  width: min(320px, calc(100vw - 36px));
+  max-height: min(70vh, 520px);
+  overflow: auto;
   background: #fff;
   border: 1.5px solid #bebe7b;
   border-radius: 12px;
@@ -536,9 +538,14 @@ body {
   transform: translateY(4px);
 }
 .speakerChip:hover .speakerTooltip,
-.speakerChip:focus .speakerTooltip {
+.speakerChip:focus-within .speakerTooltip,
+.speakerChip.tooltipOpen .speakerTooltip {
   opacity: 1;
+  pointer-events: auto;
   transform: translateY(0);
+}
+.speakerTooltip.tooltipExpanded {
+  width: min(420px, calc(100vw - 36px));
 }
 .speakerTooltip strong {
   display: block;
@@ -568,19 +575,33 @@ body {
   font-weight: 500;
   color: rgba(18,35,69,0.68);
   line-height: 1.5;
-  margin: 0 0 4px;
+  margin: 0 0 8px;
   display: -webkit-box;
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.ttClickHint {
+.speakerTooltip.tooltipExpanded .ttBio {
   display: block;
-  font-size: 0.61rem;
-  font-weight: 600;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+.ttMoreBtn {
+  border: none;
+  background: rgba(24,112,137,0.10);
   color: #187089;
-  letter-spacing: 0.01em;
-  opacity: 0.9;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+.ttMoreBtn:hover,
+.ttMoreBtn:focus {
+  background: #187089;
+  color: #fff;
+  outline: none;
 }
 
 /* ── Session card highlight (navigated from speaker view) ─── */

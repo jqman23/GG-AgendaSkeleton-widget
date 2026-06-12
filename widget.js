@@ -828,6 +828,7 @@ function navigateToSession(blockKey, sessionCode) {
 function navigateToSpeaker(name) {
   if (!inSpeakerView) toggleSpeakerView();
   const slug = speakerSlug(name);
+
   requestAnimationFrame(() => {
     const card = document.getElementById(`sp-${slug}`);
     if (card) {

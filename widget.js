@@ -765,15 +765,15 @@ function buildSessionsHTML(blockKey) {
           <button class="calBtn calIcs" onclick="event.stopPropagation();downloadICS('${esc(s.code)}')" title="Download .ics">&#8595;</button>
         </div>` : "";
         const tagsHtml = (s.tags && s.tags.length)
-          ? s.tags.map(t => `<span class="sessionTag">${esc(t)}</span>`).join("")
+          ? `<div class="sessionTagLine">${s.tags.map(t => esc(t)).join(" · ")}</div>`
           : "";
         return `
         <div class="sessionCard" data-code="${esc(s.code)}">
           <div class="sessionTags">
             ${s.theme ? `<span class="sessionTheme">${esc(s.theme)}</span>` : ""}
-            ${tagsHtml}
           </div>
           <div class="sessionCardTitle">${esc(s.name)}</div>
+          ${tagsHtml}
           ${s.description ? `<p class="sessionDesc" id="${descId}">${esc(s.description)}</p>
           <div class="sessionCardActions">
             <button class="descExpandBtn" onclick="toggleDesc(this,'${descId}')" aria-expanded="false">View full details <span class="descExpandIcon">&#9660;</span></button>

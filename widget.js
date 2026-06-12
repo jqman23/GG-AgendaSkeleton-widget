@@ -121,6 +121,7 @@ function getSessionSub(type) {
 let parentScrollTop  = 0;
 let parentViewportH  = 0;
 let hasParentMetrics = false;
+let modalAnchorEl    = null; // element the open modal is anchored to (a speaker card)
 
 window.addEventListener("message", function(e) {
   if (!e.data || typeof e.data.ggScrollTop !== "number") return;
@@ -129,21 +130,43 @@ window.addEventListener("message", function(e) {
     parentViewportH = e.data.ggViewportHeight;
   }
   hasParentMetrics = true;
-  positionModalOverlay(); // keep an open modal pinned to the viewport while scrolling
+  positionModalOverlay(modalAnchorEl); // keep an open modal pinned while scrolling
 });
 
-// Position the speaker-modal overlay over the currently visible viewport region.
-function positionModalOverlay() {
+// Position the speaker modal. The dark backdrop covers the whole widget document;
+// the modal box is placed at a vertical anchor (document coords):
+//   • anchorEl given (a speaker card the user clicked) → center on that card. It is
+//     on-screen by definition, so this needs NO parent scroll metrics — this is what
+//     makes speaker-view clicks reliable deep in a long, scrolled list.
+//   • no anchorEl (navigated from a session chip) → center on the visible viewport
+//     reported by the parent, since the freshly-rendered card may be off-screen.
+function positionModalOverlay(anchorEl) {
   const overlay = document.getElementById("spModalOverlay");
   if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
-  if (hasParentMetrics) {
-    overlay.style.top    = parentScrollTop + "px";
-    overlay.style.height = (parentViewportH || 600) + "px";
+  const modal = overlay.querySelector(".spModal");
+
+  // Backdrop spans the entire widget document so the visible area is always dimmed.
+  overlay.style.height = getDocumentHeight() + "px";
+
+  // Best estimate of the visible viewport height (for capping the modal's height).
+  const vh = (hasParentMetrics && parentViewportH)
+    ? parentViewportH
+    : (window.parent === window ? window.innerHeight : 640);
+  if (modal) modal.style.maxHeight = Math.max(240, vh - 40) + "px";
+
+  let anchorY;
+  if (anchorEl) {
+    // iframe has no scroll of its own, so getBoundingClientRect().top IS the doc-Y
+    const r = anchorEl.getBoundingClientRect();
+    anchorY = r.top + r.height / 2;
+  } else if (hasParentMetrics) {
+    anchorY = parentScrollTop + vh / 2;
   } else {
-    // Standalone (not embedded) — native scroll works, fixed-style fallback
-    overlay.style.top    = window.scrollY + "px";
-    overlay.style.height = window.innerHeight + "px";
+    anchorY = window.scrollY + window.innerHeight / 2;
   }
+
+  if (modal) modal.style.top = anchorY + "px";
+  modalAnchorEl = anchorEl || null;
 }
 
 // ─── IFRAME HEIGHT SYNC ──────────────────────────────────────────────────────
@@ -633,7 +656,7 @@ function renderSpeakerView() {
       : `<div class="spAvatarInitials">${initials}</div>`;
 
     return `
-      <div class="spCard" id="sp-${slug}" onclick="openSpeakerModal('${slug}')">
+      <div class="spCard" id="sp-${slug}" onclick="openSpeakerModal('${slug}', event)">
         ${avatar}
         <div class="spCardName">${esc(sp.name)}</div>
         ${sp.title ? `<div class="spCardTitle">${esc(sp.title)}</div>` : ""}
@@ -663,7 +686,7 @@ function setSpeakerSort(dir) {
   queueWidgetHeightPost();
 }
 
-function openSpeakerModal(slug) {
+function openSpeakerModal(slug, ev) {
   const sp = cachedSpeakers.find(s => speakerSlug(s.name) === slug);
   if (!sp) return;
   const initials = sp.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
@@ -689,8 +712,11 @@ function openSpeakerModal(slug) {
   `;
 
   const overlay = document.getElementById("spModalOverlay");
-  overlay.style.display = "flex";
-  positionModalOverlay();
+  overlay.style.display = "block";
+  // When opened by clicking a speaker card, anchor the modal to that card (always
+  // on-screen). Otherwise (navigated from a session chip) center on the viewport.
+  const anchorEl = ev ? document.getElementById("sp-" + slug) : null;
+  positionModalOverlay(anchorEl);
   // Ask the parent for fresh viewport metrics in case nothing has scrolled yet;
   // the response arrives via postMessage and re-runs positionModalOverlay().
   if (window.parent !== window) window.parent.postMessage({ ggRequestMetrics: true }, "*");

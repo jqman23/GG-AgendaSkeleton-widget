@@ -535,11 +535,12 @@ body {
 }
 
 .speakerTooltip {
-  display: none;
-  flex-basis: 100%;
-  width: 100%;
-  box-sizing: border-box;
-  margin-top: 8px;
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  width: min(320px, calc(100vw - 36px));
+  max-height: min(70vh, 520px);
+  overflow: auto;
   background: #fff;
   border: 1.5px solid #bebe7b;
   border-radius: 12px;
@@ -547,11 +548,15 @@ body {
   box-shadow: 0 10px 32px rgba(18,35,69,0.16);
   z-index: 300;
 }
+.speakerChip:hover .speakerTooltip,
+.speakerChip:focus-within .speakerTooltip,
 .speakerChip.tooltipOpen .speakerTooltip {
-  display: block;
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
 }
 .speakerTooltip.tooltipExpanded {
-  width: 100%;
+  width: min(420px, calc(100vw - 36px));
 }
 .speakerTooltip strong {
   display: block;

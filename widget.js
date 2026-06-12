@@ -153,11 +153,11 @@ window.addEventListener("message", function(e) {
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
 // the modal box is placed at a vertical anchor (document coords):
-//   • anchorEl given (a speaker card the user clicked in speaker view) → center
-//     on that visible card. The card and modal move together as the parent scrolls.
+//   • anchorEl given (a speaker card the user clicked or navigated to) → center
+//     on that card. The card and modal move together as the parent scrolls, so
+//     this does not depend on possibly stale parent viewport metrics.
 //   • no anchorEl (fallback) → center on the visible viewport reported by the
-//     parent embed script. In Cvent's no-scroll iframe, this keeps modals
-//     centered in the part of the widget the user can actually see.
+//     parent.
 function positionModalOverlay(anchorEl) {
   const overlay = document.getElementById("spModalOverlay");
   if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
@@ -825,24 +825,28 @@ function navigateToSession(blockKey, sessionCode) {
   });
 }
 
-function resetSessionSpeakerTooltip(chip) {
-  if (!chip) return;
-  chip.classList.remove("tooltipOpen");
-  chip.setAttribute("aria-expanded", "false");
+function navigateToSpeaker(name) {
+  if (!inSpeakerView) toggleSpeakerView();
+  const slug = speakerSlug(name);
 
-  const tooltip = chip.querySelector(".speakerTooltip");
-  const moreBtn = chip.querySelector(".ttMoreBtn");
-  tooltip?.classList.remove("tooltipExpanded");
-  if (moreBtn) {
-    moreBtn.textContent = "See more info";
-    moreBtn.setAttribute("aria-expanded", "false");
-  }
-}
+  requestAnimationFrame(() => {
+    const card = document.getElementById(`sp-${slug}`);
+    if (card) {
+card.scrollIntoView({ behavior: "smooth", block: "center" });
+card.classList.remove("highlighted");
+void card.offsetWidth;
+card.classList.add("highlighted");
+setTimeout(() => card.classList.remove("highlighted"), 2800);
 
-function closeSessionSpeakerTooltips(exceptChip) {
-  document.querySelectorAll(".speakerChip.tooltipOpen").forEach(chip => {
-    if (chip === exceptChip) return;
-    resetSessionSpeakerTooltip(chip);
+// When coming from a session card, the parent-page viewport metrics can
+// still describe the old agenda position (or be missing entirely). Anchor
+// the modal to the newly revealed speaker card instead, matching the
+// behavior of clicking a speaker directly inside speaker view.
+openSpeakerModal(slug, card);
+return;
+    }
+    // Fallback for unexpected missing cards: use parent metrics if available.
+    openSpeakerModal(slug);
   });
   queueWidgetHeightPost();
 }
@@ -857,25 +861,14 @@ function showSpeakerTooltip(ev, chip) {
   queueWidgetHeightPost();
 }
 
-function hideSpeakerTooltip(ev, chip) {
+function toggleSpeakerTooltip(ev, chip) {
   if (ev) ev.stopPropagation();
-  resetSessionSpeakerTooltip(chip);
-  queueWidgetHeightPost();
-}
+  if (!chip) return;
 
-function handleSpeakerTooltipFocusOut(ev, chip) {
-  if (chip?.contains(ev.relatedTarget)) return;
-  hideSpeakerTooltip(ev, chip);
-}
-
-function toggleSpeakerTooltipFromKeyboard(ev, chip) {
-  if (ev.key !== "Enter" && ev.key !== " ") return;
-  ev.preventDefault();
-  if (chip?.classList.contains("tooltipOpen")) {
-    hideSpeakerTooltip(ev, chip);
-  } else {
-    showSpeakerTooltip(ev, chip);
-  }
+  const isOpen = chip.classList.contains("tooltipOpen");
+  closeSessionSpeakerTooltips(chip);
+  chip.classList.toggle("tooltipOpen", !isOpen);
+  chip.setAttribute("aria-expanded", isOpen ? "false" : "true");
 }
 
 function expandSpeakerTooltip(ev, btn) {
@@ -938,7 +931,7 @@ function buildSessionsHTML(blockKey) {
                   ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
                   : `<div class="speakerInitials">${initials}</div>`;
                 return `
-                <div class="speakerChip" tabindex="0" onmouseenter="showSpeakerTooltip(event,this)" onmouseleave="hideSpeakerTooltip(event,this)" onclick="showSpeakerTooltip(event,this)" onfocus="showSpeakerTooltip(event,this)" onfocusout="handleSpeakerTooltipFocusOut(event,this)" onkeydown="toggleSpeakerTooltipFromKeyboard(event,this)" aria-expanded="false" title="Hover for speaker info">
+                <div class="speakerChip" tabindex="0" onclick="toggleSpeakerTooltip(event,this)" onkeydown="if(event.key==='Enter'||event.key===' '){toggleSpeakerTooltip(event,this)}" aria-expanded="false" title="Hover for speaker info">
                   ${avatar}
                   <div class="speakerChipInfo">
                     <span class="speakerChipName">${esc(sp.name)}</span>

@@ -153,13 +153,11 @@ window.addEventListener("message", function(e) {
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
 // the modal box is placed at a vertical anchor (document coords):
-//   • anchorEl given (a speaker card the user clicked in speaker view) → center
-//     on that already-visible card. The card and modal move together as the
-//     parent scrolls.
-//   • no anchorEl (session-card navigation or fallback) → center on the visible
-//     viewport reported by the parent embed script. In Cvent's no-scroll iframe,
-//     scrollIntoView() cannot move the parent page, so this is the only reliable
-//     way to make the modal appear in the user's actual viewport.
+//   • anchorEl given (a speaker card the user clicked or navigated to) → center
+//     on that card. The card and modal move together as the parent scrolls, so
+//     this does not depend on possibly stale parent viewport metrics.
+//   • no anchorEl (fallback) → center on the visible viewport reported by the
+//     parent.
 function positionModalOverlay(anchorEl) {
   const overlay = document.getElementById("spModalOverlay");
   if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
@@ -838,25 +836,17 @@ function navigateToSpeaker(name) {
       void card.offsetWidth;
       card.classList.add("highlighted");
       setTimeout(() => card.classList.remove("highlighted"), 2800);
+
+      // When coming from a session card, the parent-page viewport metrics can
+      // still describe the old agenda position (or be missing entirely). Anchor
+      // the modal to the newly revealed speaker card instead, matching the
+      // behavior of clicking a speaker directly inside speaker view.
+      openSpeakerModal(slug, card);
+      return;
     }
 
-    // This path is triggered from a session card, not from a visible speaker
-    // card. On the Vercel page, scrollIntoView() can move the window before the
-    // modal opens. Inside Cvent, the widget is a full-height, scrolling="no"
-    // iframe; scrollIntoView() only affects the iframe document and cannot move
-    // the parent page. Therefore anchoring to the speaker card can put the modal
-    // hundreds of cards away from the real viewport. Wait for the embed script's
-    // fresh visible-slice metrics, then open without an anchor so the modal is
-    // centered in the actual Cvent viewport.
-    let opened = false;
-    const openInVisibleViewport = () => {
-      if (opened) return;
-      opened = true;
-      openSpeakerModal(slug);
-    };
-
-    requestParentMetrics(openInVisibleViewport);
-    window.setTimeout(openInVisibleViewport, hasParentMetrics ? 150 : 350);
+    // Fallback for unexpected missing cards: use parent metrics if available.
+    openSpeakerModal(slug);
   });
 }
 

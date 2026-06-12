@@ -1,7 +1,7 @@
 // ─── CALENDAR SVG ICONS ──────────────────────────────────────────────────────
 // Using Google's favicon service (stable) and Microsoft's CDN icon (stable)
-const SVG_GCAL    = `<img src="https://www.google.com/s2/favicons?domain=calendar.google.com&sz=64" width="16" height="16" alt="Google Calendar" style="display:block;border-radius:3px;">`;
-const SVG_OUTLOOK = `<img src="https://res.cdn.office.net/assets/mail/pwa/unplash/favicon.ico" width="16" height="16" alt="Outlook Calendar" style="display:block;border-radius:3px;" onerror="this.src='https://outlook.live.com/favicon.ico'">`;
+const SVG_GCAL    = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/18455c8f54504314847defa08b8dcda2.png" width="16" height="16" alt="Google Calendar" style="display:block;">`;
+const SVG_OUTLOOK = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/17c86dcff13d41a386d3607a4f6fd948.png" width="16" height="16" alt="Outlook Calendar" style="display:block;">`;
 
 // ─── ICONS ───────────────────────────────────────────────────────────────────
 const icons = {

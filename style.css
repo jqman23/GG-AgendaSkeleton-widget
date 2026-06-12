@@ -200,19 +200,19 @@ body {
   user-select: none;
 }
 
-/* ── Speaker view button (matches dayBtn style) ───────────── */
+/* ── Speaker view button (matches dayBtn style, slightly smaller) ─ */
 .speakerViewBtn {
   display: flex;
   align-items: center;
   gap: 6px;
   border: none;
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-radius: 10px;
   background: #ffffff;
   cursor: pointer;
   font-family: "Montserrat", sans-serif;
   font-weight: 600;
-  font-size: 1em;
+  font-size: 0.8rem;
   color: #122345;
   box-shadow: 0 6px 14px rgba(0,0,0,0.08);
   transition: all .2s ease;
@@ -330,6 +330,26 @@ body {
   border-color: rgba(18,35,69,0.15);
 }
 
+/* Session type + theme tags row */
+.sessionTags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  align-items: center;
+}
+.sessionTypeChip {
+  display: inline-block;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(18,35,69,0.5);
+  background: rgba(18,35,69,0.07);
+  border-radius: 999px;
+  padding: 2px 8px;
+  line-height: 1.4;
+}
+
 /* Theme chip */
 .sessionTheme {
   display: inline-block;
@@ -365,6 +385,41 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Expand button + calendar icons row */
+.sessionCardActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.calBtns {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.calBtn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: none;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.6rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  transition: transform .12s, opacity .12s;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.calBtn:hover { transform: scale(1.15); opacity: 0.82; }
+.calGcal    { background: #4285F4; color: #fff; }
+.calOutlook { background: #0078D4; color: #fff; }
+.calIcs     { background: rgba(18,35,69,0.09); color: #122345; font-size: 0.78rem; }
 
 /* Description expand toggle */
 .sessionDesc--expanded {
@@ -508,11 +563,19 @@ body {
   font-weight: 500;
   color: rgba(18,35,69,0.68);
   line-height: 1.5;
-  margin: 0 0 8px;
+  margin: 0 0 4px;
   display: -webkit-box;
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.ttClickHint {
+  display: block;
+  font-size: 0.61rem;
+  font-weight: 600;
+  color: #187089;
+  letter-spacing: 0.01em;
+  opacity: 0.9;
 }
 
 /* ── Session card highlight (navigated from speaker view) ─── */
@@ -541,6 +604,20 @@ body {
 .spSortGroup {
   display: flex;
   gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.spSortLabel {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: rgba(18,35,69,0.42);
+  white-space: nowrap;
+}
+.spSortDiv {
+  color: rgba(18,35,69,0.18);
+  font-size: 1rem;
+  font-weight: 300;
+  padding: 0 2px;
 }
 .spSortBtn {
   border: 1.5px solid rgba(18,35,69,0.12);
@@ -777,8 +854,8 @@ body {
 .spModalSession:last-child { margin-bottom: 0; }
 .spModalSession:hover { background: rgba(190,190,123,0.25); }
 
-@media (max-width: 900px) { .spCards { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 650px) { .spCards { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 760px) { .spCards { grid-template-columns: repeat(4, 1fr); } }
+@media (max-width: 520px) { .spCards { grid-template-columns: repeat(3, 1fr); } }
 
 @media (max-width: 700px) {
   .timeRow { grid-template-columns: 1fr; gap: 6px; }

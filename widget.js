@@ -49,6 +49,23 @@ const data = {
   ]
 };
 
+// ─── LOOKUP MAPS (built once on load) ────────────────────────────────────────
+const blockTimeMap = {};
+for (const [, blocks] of Object.entries(data)) {
+  for (const [sd, st, ed, et] of blocks) {
+    blockTimeMap[`${sd}|${st}`] = [sd, st, ed, et];
+  }
+}
+
+const sessionMap = {};
+if (typeof sessionsByBlock !== "undefined") {
+  for (const [blockKey, sessions] of Object.entries(sessionsByBlock)) {
+    for (const s of sessions) {
+      sessionMap[s.code] = { ...s, blockKey };
+    }
+  }
+}
+
 // ─── SESSION TYPE LABELS ──────────────────────────────────────────────────────
 function getSessionLabel(type) {
   const labels = {
@@ -60,6 +77,18 @@ function getSessionLabel(type) {
     intl:     "International Exchanges"
   };
   return labels[type] || type;
+}
+
+function getSessionTypeTag(type) {
+  const tags = {
+    workshop: "Workshop",
+    strategy: "Strategy",
+    creative: "Creative",
+    keynote:  "Keynote",
+    skill:    "Institute",
+    intl:     "Intl. Exchange"
+  };
+  return tags[type] || type;
 }
 
 function getSessionSub(type) {
@@ -450,7 +479,59 @@ function speakerSlug(name) {
     .replace(/^-|-$/g, "");
 }
 
-function buildSpeakerIndex() {
+function buildCalUrls(s, blockKey) {
+  const info = blockTimeMap[blockKey];
+  if (!info) return null;
+  const [sd, st, ed, et] = info;
+  const startUtc = easternToUtc(sd, st);
+  const endUtc   = easternToUtc(ed, et);
+  const fmtGcal  = dt => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const desc = (s.description || "").slice(0, 300);
+  const gcal = "https://calendar.google.com/calendar/render?action=TEMPLATE"
+    + "&text=" + encodeURIComponent(s.name)
+    + "&dates=" + fmtGcal(startUtc) + "/" + fmtGcal(endUtc)
+    + "&details=" + encodeURIComponent(desc);
+  const outlook = "https://outlook.live.com/calendar/deeplink/compose?subject="
+    + encodeURIComponent(s.name)
+    + "&startdt=" + encodeURIComponent(startUtc.toISOString())
+    + "&enddt=" + encodeURIComponent(endUtc.toISOString())
+    + "&body=" + encodeURIComponent(desc);
+  return { gcal, outlook };
+}
+
+function downloadICS(code) {
+  const s = sessionMap[code];
+  if (!s) return;
+  const info = blockTimeMap[s.blockKey];
+  if (!info) return;
+  const [sd, st, ed, et] = info;
+  const startUtc = easternToUtc(sd, st);
+  const endUtc   = easternToUtc(ed, et);
+  const fmt      = dt => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const safeName = s.name.replace(/[\\;,]/g, "\\$&");
+  const safeDesc = (s.description || "").replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n").slice(0, 500);
+  const ics = [
+    "BEGIN:VCALENDAR", "VERSION:2.0",
+    "PRODID:-//Global Gathering 2026//EN",
+    "CALSCALE:GREGORIAN", "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    "UID:" + code + "@globalgathering2026",
+    "DTSTAMP:" + fmt(new Date()),
+    "DTSTART:" + fmt(startUtc),
+    "DTEND:" + fmt(endUtc),
+    "SUMMARY:" + safeName,
+    "DESCRIPTION:" + safeDesc,
+    "END:VEVENT", "END:VCALENDAR"
+  ].join("\r\n");
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = code + "-GG2026.ics";
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+function buildSpeakerIndex(sortBy) {
   if (typeof sessionsByBlock === "undefined") return [];
   const map = new Map();
   for (const [blockKey, sessions] of Object.entries(sessionsByBlock)) {
@@ -461,31 +542,35 @@ function buildSpeakerIndex() {
           map.set(key, { ...sp, sessions: [] });
         }
         const entry = map.get(key);
-        // Prefer richer data
         if (!entry.bio && sp.bio) entry.bio = sp.bio;
         if (!entry.photo && sp.photo) entry.photo = sp.photo;
         if (!entry.title && sp.title) entry.title = sp.title;
         if (!entry.org && sp.org) entry.org = sp.org;
-        // Avoid duplicate sessions
         if (!entry.sessions.find(x => x.code === s.code)) {
           entry.sessions.push({ code: s.code, name: s.name, blockKey });
         }
       }
     }
   }
-  return [...map.values()].sort((a, b) => {
-    const aLast = a.name.trim().split(" ").pop().toLowerCase();
-    const bLast = b.name.trim().split(" ").pop().toLowerCase();
-    return aLast.localeCompare(bLast);
-  });
+  const speakers = [...map.values()];
+  const by = sortBy || currentSort || "lastaz";
+  if (by === "lastza") {
+    speakers.sort((a, b) => b.name.trim().split(" ").pop().toLowerCase().localeCompare(a.name.trim().split(" ").pop().toLowerCase()));
+  } else if (by === "firstaz") {
+    speakers.sort((a, b) => a.name.trim().split(" ")[0].toLowerCase().localeCompare(b.name.trim().split(" ")[0].toLowerCase()));
+  } else if (by === "firstza") {
+    speakers.sort((a, b) => b.name.trim().split(" ")[0].toLowerCase().localeCompare(a.name.trim().split(" ")[0].toLowerCase()));
+  } else {
+    speakers.sort((a, b) => a.name.trim().split(" ").pop().toLowerCase().localeCompare(b.name.trim().split(" ").pop().toLowerCase()));
+  }
+  return speakers;
 }
 
 let cachedSpeakers = [];
-let currentSort = "az";
+let currentSort = "lastaz";
 
 function renderSpeakerView() {
-  cachedSpeakers = buildSpeakerIndex();
-  if (currentSort === "za") cachedSpeakers = [...cachedSpeakers].reverse();
+  cachedSpeakers = buildSpeakerIndex(currentSort);
 
   const grid = document.getElementById("speakerGrid");
 
@@ -508,8 +593,13 @@ function renderSpeakerView() {
   grid.innerHTML = `
     <div class="spControls">
       <div class="spSortGroup">
-        <button class="spSortBtn${currentSort === "az" ? " active" : ""}" onclick="setSpeakerSort('az')">A → Z</button>
-        <button class="spSortBtn${currentSort === "za" ? " active" : ""}" onclick="setSpeakerSort('za')">Z → A</button>
+        <span class="spSortLabel">Last name:</span>
+        <button class="spSortBtn${currentSort === "lastaz" ? " active" : ""}" onclick="setSpeakerSort('lastaz')">A→Z</button>
+        <button class="spSortBtn${currentSort === "lastza" ? " active" : ""}" onclick="setSpeakerSort('lastza')">Z→A</button>
+        <span class="spSortDiv">|</span>
+        <span class="spSortLabel">First name:</span>
+        <button class="spSortBtn${currentSort === "firstaz" ? " active" : ""}" onclick="setSpeakerSort('firstaz')">A→Z</button>
+        <button class="spSortBtn${currentSort === "firstza" ? " active" : ""}" onclick="setSpeakerSort('firstza')">Z→A</button>
       </div>
     </div>
     <div class="spCards">${cards}</div>
@@ -584,6 +674,7 @@ function toggleSpeakerView() {
 }
 
 function navigateToSession(blockKey, sessionCode) {
+  closeSpeakerModal();
   // Find which day owns this block
   const [blockDate, blockTime] = blockKey.split("|");
   let targetDay = null;
@@ -648,12 +739,24 @@ function buildSessionsHTML(blockKey) {
     <div class="sessionGrid">
       ${sessions.map(s => {
         const descId = `desc-${esc(s.code)}`;
+        const calLinks = buildCalUrls(s, blockKey);
+        const calBtnsHtml = calLinks ? `<div class="calBtns">
+          <a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Google Calendar">G</a>
+          <a class="calBtn calOutlook" href="${esc(calLinks.outlook)}" target="_blank" rel="noopener" title="Outlook.com">O</a>
+          <button class="calBtn calIcs" onclick="event.stopPropagation();downloadICS('${esc(s.code)}')" title="Download .ics">&#8595;</button>
+        </div>` : "";
         return `
         <div class="sessionCard" data-code="${esc(s.code)}">
-          ${s.theme ? `<div class="sessionTheme">${esc(s.theme)}</div>` : ""}
+          <div class="sessionTags">
+            <span class="sessionTypeChip">${esc(getSessionTypeTag(s.type))}</span>
+            ${s.theme ? `<span class="sessionTheme">${esc(s.theme)}</span>` : ""}
+          </div>
           <div class="sessionCardTitle">${esc(s.name)}</div>
           ${s.description ? `<p class="sessionDesc" id="${descId}">${esc(s.description)}</p>
-          <button class="descExpandBtn" onclick="toggleDesc(this,'${descId}')" aria-expanded="false">View full details <span class="descExpandIcon">&#9660;</span></button>` : ""}
+          <div class="sessionCardActions">
+            <button class="descExpandBtn" onclick="toggleDesc(this,'${descId}')" aria-expanded="false">View full details <span class="descExpandIcon">&#9660;</span></button>
+            ${calBtnsHtml}
+          </div>` : calBtnsHtml ? `<div class="sessionCardActions" style="justify-content:flex-end">${calBtnsHtml}</div>` : ""}
           ${s.speakers.length ? `
             <div class="speakerRow">
               ${s.speakers.map(sp => {
@@ -668,7 +771,7 @@ function buildSessionsHTML(blockKey) {
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
-                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p></div>` : ""}
+                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><span class="ttClickHint">Click this chip to open full profile</span></div>` : ""}
                 </div>`;
               }).join("")}
             </div>` : ""}

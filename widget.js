@@ -731,8 +731,8 @@ function openSpeakerModal(slug, ev) {
 
   const overlay = document.getElementById("spModalOverlay");
   overlay.style.display = "block";
-  // anchorEl can be an Event (speaker-card click), an Element (navigateToSpeaker),
-  // or null (unknown). In all cases we want a DOM element to anchor to.
+  // anchorEl can be an Event (speaker-card click), an Element, or null
+  // (unknown). In all cases we want a DOM element to anchor to when available.
   let anchorEl;
   if (ev instanceof Element) {
     anchorEl = ev;
@@ -850,6 +850,39 @@ return;
   });
 }
 
+function toggleSpeakerTooltip(ev, chip) {
+  if (ev) ev.stopPropagation();
+  if (!chip) return;
+
+  const isOpen = chip.classList.contains("tooltipOpen");
+  closeSessionSpeakerTooltips(chip);
+  chip.classList.toggle("tooltipOpen", !isOpen);
+  chip.setAttribute("aria-expanded", isOpen ? "false" : "true");
+}
+
+function expandSpeakerTooltip(ev, btn) {
+  if (ev) ev.stopPropagation();
+  const tooltip = btn?.closest(".speakerTooltip");
+  const chip = btn?.closest(".speakerChip");
+  if (!tooltip || !btn) return;
+
+  tooltip.classList.toggle("tooltipExpanded");
+  const isExpanded = tooltip.classList.contains("tooltipExpanded");
+  btn.textContent = isExpanded ? "Show less" : "See more info";
+  btn.setAttribute("aria-expanded", isExpanded ? "true" : "false");
+
+  if (chip) {
+    chip.classList.add("tooltipOpen");
+    chip.setAttribute("aria-expanded", "true");
+  }
+  queueWidgetHeightPost();
+}
+
+document.addEventListener("click", () => closeSessionSpeakerTooltips());
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") closeSessionSpeakerTooltips();
+});
+
 function buildSessionsHTML(blockKey) {
   const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
   if (!sessions.length) return "";
@@ -887,13 +920,13 @@ function buildSessionsHTML(blockKey) {
                   ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
                   : `<div class="speakerInitials">${initials}</div>`;
                 return `
-                <div class="speakerChip" tabindex="0" onclick="navigateToSpeaker('${esc(sp.name)}')" title="Click to view speaker profile">
+                <div class="speakerChip" tabindex="0" onclick="toggleSpeakerTooltip(event,this)" onkeydown="if(event.key==='Enter'||event.key===' '){toggleSpeakerTooltip(event,this)}" aria-expanded="false" title="Hover for speaker info">
                   ${avatar}
                   <div class="speakerChipInfo">
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
-                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><span class="ttClickHint">Click to open full profile</span></div>` : ""}
+                  ${sp.bio ? `<div class="speakerTooltip" onclick="event.stopPropagation()"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><button type="button" class="ttMoreBtn" aria-expanded="false" onclick="expandSpeakerTooltip(event,this)">See more info</button></div>` : ""}
                 </div>`;
               }).join("")}
             </div>` : ""}

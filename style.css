@@ -465,7 +465,7 @@ body {
 /* Speaker chip */
 .speakerChip {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 7px;
   background: #f4f6fa;
@@ -529,34 +529,27 @@ body {
 .speakerChip.tooltipOpen {
   align-items: flex-start;
   border-radius: 14px;
-  flex-basis: min(420px, 100%);
+  flex: 1 1 min(420px, 100%);
   flex-wrap: wrap;
   max-width: 100%;
 }
 
 .speakerTooltip {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  width: min(320px, calc(100vw - 36px));
-  max-height: min(70vh, 520px);
-  overflow: auto;
+  display: block;
+  flex-basis: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
   background: #fff;
   border: 1.5px solid #bebe7b;
   border-radius: 12px;
   padding: 12px 14px;
   box-shadow: 0 10px 32px rgba(18,35,69,0.16);
   z-index: 300;
-}
-.speakerChip:hover .speakerTooltip,
-.speakerChip:focus-within .speakerTooltip,
-.speakerChip.tooltipOpen .speakerTooltip {
-  opacity: 1;
-  pointer-events: auto;
-  transform: translateY(0);
+  overflow-wrap: anywhere;
 }
 .speakerTooltip.tooltipExpanded {
-  width: min(420px, calc(100vw - 36px));
+  width: 100%;
 }
 .speakerTooltip strong {
   display: block;
@@ -591,6 +584,10 @@ body {
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+.ttBioEmpty {
+  display: block;
+  overflow: visible;
 }
 .speakerTooltip.tooltipExpanded .ttBio {
   display: block;

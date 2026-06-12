@@ -851,24 +851,81 @@ return;
   queueWidgetHeightPost();
 }
 
+let activeSpeakerTooltipChip = null;
+
+function getSpeakerDetailsByName(name) {
+  const slug = speakerSlug(name || "");
+  return buildSpeakerIndex(currentSort).find(sp => speakerSlug(sp.name) === slug) || null;
+}
+
+function buildSpeakerTooltipHTML(sp) {
+  if (!sp) return "";
+  return `
+    <div class="speakerTooltip" onclick="event.stopPropagation()">
+      <strong>${esc(sp.name)}</strong>
+      ${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}
+      ${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}
+      ${sp.bio ? `<p class="ttBio">${esc(sp.bio)}</p><button type="button" class="ttMoreBtn" aria-expanded="false" onclick="expandSpeakerTooltip(event,this)">See more info</button>` : `<p class="ttBio ttBioEmpty">More speaker information coming soon.</p>`}
+    </div>`;
+}
+
+function resetSessionSpeakerTooltip(chip) {
+  if (!chip) return;
+  chip.classList.remove("tooltipOpen");
+  chip.setAttribute("aria-expanded", "false");
+  chip.querySelector(".speakerTooltip")?.remove();
+}
+
+function closeSessionSpeakerTooltips(exceptChip) {
+  if (activeSpeakerTooltipChip && activeSpeakerTooltipChip !== exceptChip) {
+    resetSessionSpeakerTooltip(activeSpeakerTooltipChip);
+    activeSpeakerTooltipChip = null;
+  }
+
+  document.querySelectorAll(".speakerChip.tooltipOpen").forEach(chip => {
+    if (chip === exceptChip) return;
+    resetSessionSpeakerTooltip(chip);
+  });
+
+  queueWidgetHeightPost();
+}
+
 function showSpeakerTooltip(ev, chip) {
   if (ev) ev.stopPropagation();
   if (!chip) return;
 
   closeSessionSpeakerTooltips(chip);
+  if (!chip.querySelector(".speakerTooltip")) {
+    const sp = getSpeakerDetailsByName(chip.dataset.speakerName);
+    chip.insertAdjacentHTML("beforeend", buildSpeakerTooltipHTML(sp));
+  }
+
   chip.classList.add("tooltipOpen");
   chip.setAttribute("aria-expanded", "true");
+  activeSpeakerTooltipChip = chip;
   queueWidgetHeightPost();
 }
 
-function toggleSpeakerTooltip(ev, chip) {
+function hideSpeakerTooltip(ev, chip) {
   if (ev) ev.stopPropagation();
-  if (!chip) return;
+  resetSessionSpeakerTooltip(chip);
+  if (activeSpeakerTooltipChip === chip) activeSpeakerTooltipChip = null;
+  queueWidgetHeightPost();
+}
 
-  const isOpen = chip.classList.contains("tooltipOpen");
-  closeSessionSpeakerTooltips(chip);
-  chip.classList.toggle("tooltipOpen", !isOpen);
-  chip.setAttribute("aria-expanded", isOpen ? "false" : "true");
+function handleSpeakerTooltipFocusOut(ev, chip) {
+  if (chip?.contains(ev.relatedTarget)) return;
+  hideSpeakerTooltip(ev, chip);
+}
+
+function toggleSpeakerTooltipFromKeyboard(ev, chip) {
+  if (ev.key !== "Enter" && ev.key !== " ") return;
+  ev.preventDefault();
+  if (chip?.classList.contains("tooltipOpen")) {
+    hideSpeakerTooltip(ev, chip);
+  } else {
+    showSpeakerTooltip(ev, chip);
+  }
 }
 
 function expandSpeakerTooltip(ev, btn) {
@@ -885,6 +942,7 @@ function expandSpeakerTooltip(ev, btn) {
   if (chip) {
     chip.classList.add("tooltipOpen");
     chip.setAttribute("aria-expanded", "true");
+    activeSpeakerTooltipChip = chip;
   }
   queueWidgetHeightPost();
 }
@@ -931,13 +989,12 @@ function buildSessionsHTML(blockKey) {
                   ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
                   : `<div class="speakerInitials">${initials}</div>`;
                 return `
-                <div class="speakerChip" tabindex="0" onclick="toggleSpeakerTooltip(event,this)" onkeydown="if(event.key==='Enter'||event.key===' '){toggleSpeakerTooltip(event,this)}" aria-expanded="false" title="Hover for speaker info">
+                <div class="speakerChip" tabindex="0" data-speaker-name="${esc(sp.name)}" onmouseenter="showSpeakerTooltip(event,this)" onmouseleave="hideSpeakerTooltip(event,this)" onclick="showSpeakerTooltip(event,this)" onfocus="showSpeakerTooltip(event,this)" onfocusout="handleSpeakerTooltipFocusOut(event,this)" onkeydown="toggleSpeakerTooltipFromKeyboard(event,this)" aria-expanded="false" title="Hover for speaker info">
                   ${avatar}
                   <div class="speakerChipInfo">
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
-                  ${sp.bio ? `<div class="speakerTooltip" onclick="event.stopPropagation()"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><button type="button" class="ttMoreBtn" aria-expanded="false" onclick="expandSpeakerTooltip(event,this)">See more info</button></div>` : ""}
                 </div>`;
               }).join("")}
             </div>` : ""}

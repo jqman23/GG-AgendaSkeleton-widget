@@ -852,6 +852,7 @@ return;
 }
 
 let activeSpeakerTooltipChip = null;
+let pinnedSpeakerTooltipChip = null;
 
 function getSpeakerDetailsByName(name) {
   const slug = speakerSlug(name || "");
@@ -885,6 +886,7 @@ function resetSessionSpeakerTooltip(chip) {
   chip.classList.remove("tooltipOpen");
   chip.setAttribute("aria-expanded", "false");
   chip.querySelector(".speakerTooltip")?.remove();
+  if (pinnedSpeakerTooltipChip === chip) pinnedSpeakerTooltipChip = null;
 }
 
 function closeSessionSpeakerTooltips(exceptChip) {
@@ -927,12 +929,29 @@ function showSpeakerTooltip(ev, chip) {
 
 function hideSpeakerTooltip(ev, chip) {
   if (ev) ev.stopPropagation();
+  if (pinnedSpeakerTooltipChip === chip) return;
   resetSessionSpeakerTooltip(chip);
   if (activeSpeakerTooltipChip === chip) activeSpeakerTooltipChip = null;
   queueWidgetHeightPost();
 }
 
+function toggleSpeakerTooltipPin(ev, chip) {
+  if (ev) ev.stopPropagation();
+  if (!chip) return;
+
+  if (pinnedSpeakerTooltipChip === chip) {
+    resetSessionSpeakerTooltip(chip);
+    if (activeSpeakerTooltipChip === chip) activeSpeakerTooltipChip = null;
+    queueWidgetHeightPost();
+    return;
+  }
+
+  showSpeakerTooltip(ev, chip);
+  pinnedSpeakerTooltipChip = chip;
+}
+
 function handleSpeakerTooltipFocusOut(ev, chip) {
+  if (pinnedSpeakerTooltipChip === chip) return;
   if (chip?.contains(ev.relatedTarget)) return;
   hideSpeakerTooltip(ev, chip);
 }
@@ -940,11 +959,7 @@ function handleSpeakerTooltipFocusOut(ev, chip) {
 function toggleSpeakerTooltipFromKeyboard(ev, chip) {
   if (ev.key !== "Enter" && ev.key !== " ") return;
   ev.preventDefault();
-  if (chip?.classList.contains("tooltipOpen")) {
-    hideSpeakerTooltip(ev, chip);
-  } else {
-    showSpeakerTooltip(ev, chip);
-  }
+  toggleSpeakerTooltipPin(ev, chip);
 }
 
 function expandSpeakerTooltip(ev, btn) {
@@ -1008,7 +1023,7 @@ function buildSessionsHTML(blockKey) {
                   ? `<img class="speakerInitials speakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
                   : `<div class="speakerInitials">${initials}</div>`;
                 return `
-                <div class="speakerChip" tabindex="0" data-speaker-name="${esc(sp.name)}" onmouseenter="showSpeakerTooltip(event,this)" onmouseleave="hideSpeakerTooltip(event,this)" onclick="showSpeakerTooltip(event,this)" onfocus="showSpeakerTooltip(event,this)" onfocusout="handleSpeakerTooltipFocusOut(event,this)" onkeydown="toggleSpeakerTooltipFromKeyboard(event,this)" aria-expanded="false" title="Hover for speaker info">
+                <div class="speakerChip" tabindex="0" data-speaker-name="${esc(sp.name)}" onmouseenter="showSpeakerTooltip(event,this)" onmouseleave="hideSpeakerTooltip(event,this)" onclick="toggleSpeakerTooltipPin(event,this)" onfocus="showSpeakerTooltip(event,this)" onfocusout="handleSpeakerTooltipFocusOut(event,this)" onkeydown="toggleSpeakerTooltipFromKeyboard(event,this)" aria-expanded="false" title="Hover for speaker info">
                   ${avatar}
                   <div class="speakerChipInfo">
                     <span class="speakerChipName">${esc(sp.name)}</span>

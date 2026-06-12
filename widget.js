@@ -713,9 +713,14 @@ function openSpeakerModal(slug, ev) {
 
   const overlay = document.getElementById("spModalOverlay");
   overlay.style.display = "block";
-  // When opened by clicking a speaker card, anchor the modal to that card (always
-  // on-screen). Otherwise (navigated from a session chip) center on the viewport.
-  const anchorEl = ev ? document.getElementById("sp-" + slug) : null;
+  // anchorEl can be an Event (speaker-card click), an Element (navigateToSpeaker),
+  // or null (unknown). In all cases we want a DOM element to anchor to.
+  let anchorEl;
+  if (ev instanceof Element) {
+    anchorEl = ev;
+  } else {
+    anchorEl = ev ? document.getElementById("sp-" + slug) : null;
+  }
   positionModalOverlay(anchorEl);
   // Ask the parent for fresh viewport metrics in case nothing has scrolled yet;
   // the response arrives via postMessage and re-runs positionModalOverlay().
@@ -814,7 +819,7 @@ function navigateToSpeaker(name) {
       card.classList.add("highlighted");
       setTimeout(() => card.classList.remove("highlighted"), 2800);
     }
-    openSpeakerModal(slug);
+    openSpeakerModal(slug, card || undefined);
   });
 }
 

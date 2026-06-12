@@ -874,7 +874,9 @@ function updateSpeakerTooltipMoreButton(tooltip) {
   const btn = tooltip?.querySelector(".ttMoreBtn");
   if (!bio || !btn) return;
 
-  const isClipped = bio.scrollHeight > bio.clientHeight + 1;
+  const styles = window.getComputedStyle(bio);
+  const lineHeight = parseFloat(styles.lineHeight) || 12;
+  const isClipped = bio.scrollHeight - bio.clientHeight > Math.max(2, lineHeight * 0.35);
   btn.hidden = !isClipped;
 }
 
@@ -907,12 +909,19 @@ function showSpeakerTooltip(ev, chip) {
   if (!chip.querySelector(".speakerTooltip")) {
     const sp = getSpeakerDetailsByName(chip.dataset.speakerName);
     chip.insertAdjacentHTML("beforeend", buildSpeakerTooltipHTML(sp));
-    updateSpeakerTooltipMoreButton(chip.querySelector(".speakerTooltip"));
   }
 
   chip.classList.add("tooltipOpen");
   chip.setAttribute("aria-expanded", "true");
   activeSpeakerTooltipChip = chip;
+
+  window.requestAnimationFrame(() => {
+    if (chip.classList.contains("tooltipOpen")) {
+      updateSpeakerTooltipMoreButton(chip.querySelector(".speakerTooltip"));
+      queueWidgetHeightPost();
+    }
+  });
+
   queueWidgetHeightPost();
 }
 

@@ -1,3 +1,7 @@
+// ─── CALENDAR SVG ICONS ──────────────────────────────────────────────────────
+const SVG_GCAL = `<svg viewBox="0 0 18 18" width="13" height="13" xmlns="http://www.w3.org/2000/svg" fill="none"><rect x=".75" y="2.75" width="16.5" height="14.5" rx="2" fill="#fff" stroke="#DADCE0" stroke-width=".9"/><path d="M.75 5a2 2 0 0 1 2-2h12.5a2 2 0 0 1 2 2v3.5H.75V5z" fill="#4285F4"/><rect x="4.5" y="1" width="1.2" height="3" rx=".6" fill="#EA4335"/><rect x="12.3" y="1" width="1.2" height="3" rx=".6" fill="#EA4335"/><text x="9" y="15.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="5.5" font-weight="800" fill="#1a73e8">31</text></svg>`;
+const SVG_OUTLOOK = `<svg viewBox="0 0 18 18" width="13" height="13" xmlns="http://www.w3.org/2000/svg"><rect width="18" height="18" rx="2" fill="#0078D4"/><rect x="9.5" y="2" width="7" height="14" rx="1" fill="#28A8E8"/><rect x="9.5" y="9.5" width="7" height="6.5" rx="0" fill="#50D9FF" opacity=".65"/><ellipse cx="5.5" cy="9" rx="3.5" ry="4" fill="#fff"/></svg>`;
+
 // ─── ICONS ───────────────────────────────────────────────────────────────────
 const icons = {
   workshop: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/7fa5436c0536426fa7e85842cf7aad5d.png",
@@ -482,20 +486,27 @@ function speakerSlug(name) {
 function buildCalUrls(s, blockKey) {
   const info = blockTimeMap[blockKey];
   if (!info) return null;
-  const [sd, st, ed, et] = info;
-  const startUtc = easternToUtc(sd, st);
-  const endUtc   = easternToUtc(ed, et);
-  const fmtGcal  = dt => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+  const [sd, st] = info;
+  const endTime = s.endTime || info[3];
   const desc = (s.description || "").slice(0, 300);
+
+  // Google Calendar: MDT local times (no Z) + explicit timezone
+  const fmtGcal = (date, time) => date.replace(/-/g, "") + "T" + time.replace(":", "") + "00";
   const gcal = "https://calendar.google.com/calendar/render?action=TEMPLATE"
     + "&text=" + encodeURIComponent(s.name)
-    + "&dates=" + fmtGcal(startUtc) + "/" + fmtGcal(endUtc)
+    + "&dates=" + fmtGcal(sd, st) + "/" + fmtGcal(sd, endTime)
+    + "&ctz=America%2FDenver"
     + "&details=" + encodeURIComponent(desc);
+
+  // Outlook: ISO with -06:00 offset + Windows timezone ID
+  const fmtOutlook = (date, time) => date + "T" + time + ":00-06:00";
   const outlook = "https://outlook.live.com/calendar/deeplink/compose?subject="
     + encodeURIComponent(s.name)
-    + "&startdt=" + encodeURIComponent(startUtc.toISOString())
-    + "&enddt=" + encodeURIComponent(endUtc.toISOString())
+    + "&startdt=" + encodeURIComponent(fmtOutlook(sd, st))
+    + "&enddt=" + encodeURIComponent(fmtOutlook(sd, endTime))
+    + "&timeZone=" + encodeURIComponent("Mountain Standard Time")
     + "&body=" + encodeURIComponent(desc);
+
   return { gcal, outlook };
 }
 
@@ -504,9 +515,10 @@ function downloadICS(code) {
   if (!s) return;
   const info = blockTimeMap[s.blockKey];
   if (!info) return;
-  const [sd, st, ed, et] = info;
+  const [sd, st] = info;
+  const endTime = s.endTime || info[3];
   const startUtc = easternToUtc(sd, st);
-  const endUtc   = easternToUtc(ed, et);
+  const endUtc   = easternToUtc(sd, endTime);
   const fmt      = dt => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const safeName = s.name.replace(/[\\;,]/g, "\\$&");
   const safeDesc = (s.description || "").replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n").slice(0, 500);
@@ -649,24 +661,30 @@ function closeSpeakerModal() {
 
 function toggleSpeakerView() {
   inSpeakerView = !inSpeakerView;
-  const agendaGrid   = document.getElementById("agendaGrid");
-  const speakerGrid  = document.getElementById("speakerGrid");
-  const btn          = document.getElementById("speakerViewBtn");
+  const agendaGrid     = document.getElementById("agendaGrid");
+  const speakerGrid    = document.getElementById("speakerGrid");
+  const btn            = document.getElementById("speakerViewBtn");
   const expandControls = document.getElementById("expandControls");
-  const skillNote    = document.getElementById("skillNote");
+  const skillNote      = document.getElementById("skillNote");
+  const filterBtn      = document.querySelector(".filterToggle button");
 
   if (inSpeakerView) {
-    agendaGrid.style.display   = "none";
+    agendaGrid.style.display     = "none";
     expandControls.style.display = "none";
-    skillNote.style.display    = "none";
-    speakerGrid.style.display  = "";
+    skillNote.style.display      = "none";
+    speakerGrid.style.display    = "";
     btn.classList.add("active");
+    // Deselect all day tabs
+    document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
+    // Disable filter toggle
+    if (filterBtn) { filterBtn.disabled = true; filterBtn.classList.add("disabled"); }
     renderSpeakerView();
   } else {
-    speakerGrid.style.display  = "none";
-    agendaGrid.style.display   = "";
+    speakerGrid.style.display    = "none";
+    agendaGrid.style.display     = "";
     expandControls.style.display = "";
     btn.classList.remove("active");
+    if (filterBtn) { filterBtn.disabled = false; filterBtn.classList.remove("disabled"); }
     const activeDay = document.querySelector(".dayBtn.active")?.dataset.day;
     if (activeDay === "day1") skillNote.style.display = "";
   }
@@ -741,15 +759,18 @@ function buildSessionsHTML(blockKey) {
         const descId = `desc-${esc(s.code)}`;
         const calLinks = buildCalUrls(s, blockKey);
         const calBtnsHtml = calLinks ? `<div class="calBtns">
-          <a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Google Calendar">G</a>
-          <a class="calBtn calOutlook" href="${esc(calLinks.outlook)}" target="_blank" rel="noopener" title="Outlook.com">O</a>
+          <a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Add to Google Calendar">${SVG_GCAL}</a>
+          <a class="calBtn calOutlook" href="${esc(calLinks.outlook)}" target="_blank" rel="noopener" title="Add to Outlook Calendar">${SVG_OUTLOOK}</a>
           <button class="calBtn calIcs" onclick="event.stopPropagation();downloadICS('${esc(s.code)}')" title="Download .ics">&#8595;</button>
         </div>` : "";
+        const tagsHtml = (s.tags && s.tags.length)
+          ? s.tags.map(t => `<span class="sessionTag">${esc(t)}</span>`).join("")
+          : "";
         return `
         <div class="sessionCard" data-code="${esc(s.code)}">
           <div class="sessionTags">
-            <span class="sessionTypeChip">${esc(getSessionTypeTag(s.type))}</span>
             ${s.theme ? `<span class="sessionTheme">${esc(s.theme)}</span>` : ""}
+            ${tagsHtml}
           </div>
           <div class="sessionCardTitle">${esc(s.name)}</div>
           ${s.description ? `<p class="sessionDesc" id="${descId}">${esc(s.description)}</p>
@@ -771,7 +792,7 @@ function buildSessionsHTML(blockKey) {
                     <span class="speakerChipName">${esc(sp.name)}</span>
                     ${sp.title || sp.org ? `<span class="speakerChipMeta">${esc([sp.title, sp.org].filter(Boolean).join(" · "))}</span>` : ""}
                   </div>
-                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><span class="ttClickHint">Click this chip to open full profile</span></div>` : ""}
+                  ${sp.bio ? `<div class="speakerTooltip"><strong>${esc(sp.name)}</strong>${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}<p class="ttBio">${esc(sp.bio)}</p><span class="ttClickHint">Click to open full profile</span></div>` : ""}
                 </div>`;
               }).join("")}
             </div>` : ""}

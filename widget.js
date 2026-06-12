@@ -1,6 +1,7 @@
 // ─── CALENDAR SVG ICONS ──────────────────────────────────────────────────────
-const SVG_GCAL = `<svg viewBox="0 0 18 18" width="13" height="13" xmlns="http://www.w3.org/2000/svg" fill="none"><rect x=".75" y="2.75" width="16.5" height="14.5" rx="2" fill="#fff" stroke="#DADCE0" stroke-width=".9"/><path d="M.75 5a2 2 0 0 1 2-2h12.5a2 2 0 0 1 2 2v3.5H.75V5z" fill="#4285F4"/><rect x="4.5" y="1" width="1.2" height="3" rx=".6" fill="#EA4335"/><rect x="12.3" y="1" width="1.2" height="3" rx=".6" fill="#EA4335"/><text x="9" y="15.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="5.5" font-weight="800" fill="#1a73e8">31</text></svg>`;
-const SVG_OUTLOOK = `<svg viewBox="0 0 18 18" width="13" height="13" xmlns="http://www.w3.org/2000/svg"><rect width="18" height="18" rx="2" fill="#0078D4"/><rect x="9.5" y="2" width="7" height="14" rx="1" fill="#28A8E8"/><rect x="9.5" y="9.5" width="7" height="6.5" rx="0" fill="#50D9FF" opacity=".65"/><ellipse cx="5.5" cy="9" rx="3.5" ry="4" fill="#fff"/></svg>`;
+// Using Google's favicon service (stable) and Microsoft's CDN icon (stable)
+const SVG_GCAL    = `<img src="https://www.google.com/s2/favicons?domain=calendar.google.com&sz=64" width="16" height="16" alt="Google Calendar" style="display:block;border-radius:3px;">`;
+const SVG_OUTLOOK = `<img src="https://res.cdn.office.net/assets/mail/pwa/unplash/favicon.ico" width="16" height="16" alt="Outlook Calendar" style="display:block;border-radius:3px;" onerror="this.src='https://outlook.live.com/favicon.ico'">`;
 
 // ─── ICONS ───────────────────────────────────────────────────────────────────
 const icons = {

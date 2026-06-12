@@ -427,8 +427,8 @@ body {
   line-height: 1;
 }
 .calBtn:hover { transform: scale(1.15); opacity: 0.82; }
-.calGcal    { background: #fff; border: 1px solid #DADCE0; padding: 0; }
-.calOutlook { background: transparent; padding: 0; }
+.calGcal    { background: transparent; border: none; padding: 0; }
+.calOutlook { background: transparent; border: none; padding: 0; }
 .calIcs     { background: rgba(18,35,69,0.09); color: #122345; font-size: 0.78rem; }
 
 /* Description expand toggle */

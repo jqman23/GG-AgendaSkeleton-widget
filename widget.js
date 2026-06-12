@@ -903,7 +903,6 @@ function render(day) {
           <div class="sessionMeta">
             ${comfortable ? `<div class="comfortLabel">${tzAbbr} daytime hours</div>` : ""}
             ${evening ? `<div class="eveningLabel">${tzAbbr} evening hours</div>` : ""}
-            ${neutral && primary === "skill" ? `<div class="neutralLabel">A variety of topics will be offered across time blocks</div>` : ""}
             ${neutral && primary !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
           </div>
         </div>

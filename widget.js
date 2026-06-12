@@ -932,6 +932,8 @@ document.querySelectorAll(".dayBtn").forEach(btn => {
       document.getElementById("agendaGrid").style.display = "";
       document.getElementById("expandControls").style.display = "";
       document.getElementById("speakerViewBtn").classList.remove("active");
+      const fb = document.querySelector(".filterToggle button");
+      if (fb) { fb.disabled = false; fb.classList.remove("disabled"); }
     }
     document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
     btn.classList.add("active");

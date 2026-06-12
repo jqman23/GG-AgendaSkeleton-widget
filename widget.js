@@ -843,7 +843,7 @@ setTimeout(() => card.classList.remove("highlighted"), 2800);
 // Open unanchored so positionModalOverlay() centers it in the visible parent viewport.
 openSpeakerModal(slug);
 return;
-
+    }
     // Fallback for unexpected missing cards: use parent metrics if available.
     openSpeakerModal(slug);
   });

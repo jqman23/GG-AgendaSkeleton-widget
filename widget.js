@@ -848,6 +848,17 @@ return;
     // Fallback for unexpected missing cards: use parent metrics if available.
     openSpeakerModal(slug);
   });
+  queueWidgetHeightPost();
+}
+
+function showSpeakerTooltip(ev, chip) {
+  if (ev) ev.stopPropagation();
+  if (!chip) return;
+
+  closeSessionSpeakerTooltips(chip);
+  chip.classList.add("tooltipOpen");
+  chip.setAttribute("aria-expanded", "true");
+  queueWidgetHeightPost();
 }
 
 function toggleSpeakerTooltip(ev, chip) {

@@ -519,6 +519,21 @@ body {
 }
 
 /* Bio tooltip */
+.sessionPanel,
+.sessionGrid,
+.sessionCard,
+.speakerRow {
+  overflow: visible;
+}
+
+.speakerChip.tooltipOpen {
+  align-items: flex-start;
+  border-radius: 14px;
+  flex-basis: min(420px, 100%);
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
 .speakerTooltip {
   position: absolute;
   bottom: 100%;
@@ -532,10 +547,6 @@ body {
   padding: 12px 14px;
   box-shadow: 0 10px 32px rgba(18,35,69,0.16);
   z-index: 300;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s ease, transform .15s ease;
-  transform: translateY(4px);
 }
 .speakerChip:hover .speakerTooltip,
 .speakerChip:focus-within .speakerTooltip,

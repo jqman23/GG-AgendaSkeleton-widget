@@ -475,7 +475,8 @@ body {
   transition: background .15s;
 }
 .speakerChip:hover,
-.speakerChip:focus { background: rgba(190,190,123,0.22); outline: none; }
+.speakerChip.tooltipOpen { background: rgba(190,190,123,0.22); }
+.speakerChip:focus { outline: none; }
 
 .speakerInitials {
   width: 26px;

@@ -1139,7 +1139,7 @@ function render(day) {
         <img class="icon" src="${icons[t]}" alt="">
         <div>
           <div class="sessionType">${getSessionLabel(t)}</div>
-          ${i === 0 ? `<div class="sessionSub">${getSessionSub(t)}</div>` : ""}
+          ${getSessionSub(t) ? `<div class="sessionSub">${getSessionSub(t)}</div>` : ""}
         </div>
       </div>
     `).join("");

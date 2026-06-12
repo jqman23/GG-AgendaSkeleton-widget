@@ -122,6 +122,19 @@ let parentScrollTop  = 0;
 let parentViewportH  = 0;
 let hasParentMetrics = false;
 let modalAnchorEl    = null; // element the open modal is anchored to (a speaker card)
+let pendingMetricsCallbacks = [];
+
+function requestParentMetrics(onMetrics) {
+  if (typeof onMetrics === "function") {
+    pendingMetricsCallbacks.push(onMetrics);
+  }
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ ggRequestMetrics: true }, "*");
+  } else if (typeof onMetrics === "function") {
+    window.requestAnimationFrame(onMetrics);
+  }
+}
 
 window.addEventListener("message", function(e) {
   if (!e.data || typeof e.data.ggScrollTop !== "number") return;
@@ -130,6 +143,11 @@ window.addEventListener("message", function(e) {
     parentViewportH = e.data.ggViewportHeight;
   }
   hasParentMetrics = true;
+
+  const callbacks = pendingMetricsCallbacks;
+  pendingMetricsCallbacks = [];
+  callbacks.forEach(cb => cb());
+
   positionModalOverlay(modalAnchorEl); // keep an open modal pinned while scrolling
 });
 
@@ -724,7 +742,7 @@ function openSpeakerModal(slug, ev) {
   positionModalOverlay(anchorEl);
   // Ask the parent for fresh viewport metrics in case nothing has scrolled yet;
   // the response arrives via postMessage and re-runs positionModalOverlay().
-  if (window.parent !== window) window.parent.postMessage({ ggRequestMetrics: true }, "*");
+  requestParentMetrics();
   queueWidgetHeightPost();
 }
 

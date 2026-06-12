@@ -465,7 +465,7 @@ body {
 /* Speaker chip */
 .speakerChip {
   position: relative;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 7px;
   background: #f4f6fa;
@@ -519,26 +519,37 @@ body {
 }
 
 /* Bio tooltip */
+.sessionPanel,
+.sessionGrid,
+.sessionCard,
+.speakerRow {
+  overflow: visible;
+}
+
+.speakerChip.tooltipOpen {
+  align-items: flex-start;
+  border-radius: 14px;
+  flex: 1 1 min(420px, 100%);
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+
 .speakerTooltip {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 0;
-  width: 280px;
+  display: block;
+  flex-basis: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
   background: #fff;
   border: 1.5px solid #bebe7b;
   border-radius: 12px;
   padding: 12px 14px;
   box-shadow: 0 10px 32px rgba(18,35,69,0.16);
   z-index: 300;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .15s ease, transform .15s ease;
-  transform: translateY(4px);
+  overflow-wrap: anywhere;
 }
-.speakerChip:hover .speakerTooltip,
-.speakerChip:focus .speakerTooltip {
-  opacity: 1;
-  transform: translateY(0);
+.speakerTooltip.tooltipExpanded {
+  width: 100%;
 }
 .speakerTooltip strong {
   display: block;
@@ -568,19 +579,37 @@ body {
   font-weight: 500;
   color: rgba(18,35,69,0.68);
   line-height: 1.5;
-  margin: 0 0 4px;
+  margin: 0 0 8px;
   display: -webkit-box;
   -webkit-line-clamp: 6;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.ttClickHint {
+.ttBioEmpty {
   display: block;
-  font-size: 0.61rem;
-  font-weight: 600;
+  overflow: visible;
+}
+.speakerTooltip.tooltipExpanded .ttBio {
+  display: block;
+  -webkit-line-clamp: unset;
+  overflow: visible;
+}
+.ttMoreBtn {
+  border: none;
+  background: rgba(24,112,137,0.10);
   color: #187089;
-  letter-spacing: 0.01em;
-  opacity: 0.9;
+  border-radius: 999px;
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 6px 10px;
+}
+.ttMoreBtn:hover,
+.ttMoreBtn:focus {
+  background: #187089;
+  color: #fff;
+  outline: none;
 }
 
 /* ── Session card highlight (navigated from speaker view) ─── */

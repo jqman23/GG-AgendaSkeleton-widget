@@ -865,8 +865,17 @@ function buildSpeakerTooltipHTML(sp) {
       <strong>${esc(sp.name)}</strong>
       ${sp.title ? `<span class="ttTitle">${esc(sp.title)}</span>` : ""}
       ${sp.org ? `<span class="ttOrg">${esc(sp.org)}</span>` : ""}
-      ${sp.bio ? `<p class="ttBio">${esc(sp.bio)}</p><button type="button" class="ttMoreBtn" aria-expanded="false" onclick="expandSpeakerTooltip(event,this)">See more info</button>` : `<p class="ttBio ttBioEmpty">More speaker information coming soon.</p>`}
+      ${sp.bio ? `<p class="ttBio">${esc(sp.bio)}</p><button type="button" class="ttMoreBtn" aria-expanded="false" hidden onclick="expandSpeakerTooltip(event,this)">See more info</button>` : `<p class="ttBio ttBioEmpty">More speaker information coming soon.</p>`}
     </div>`;
+}
+
+function updateSpeakerTooltipMoreButton(tooltip) {
+  const bio = tooltip?.querySelector(".ttBio:not(.ttBioEmpty)");
+  const btn = tooltip?.querySelector(".ttMoreBtn");
+  if (!bio || !btn) return;
+
+  const isClipped = bio.scrollHeight > bio.clientHeight + 1;
+  btn.hidden = !isClipped;
 }
 
 function resetSessionSpeakerTooltip(chip) {
@@ -898,6 +907,7 @@ function showSpeakerTooltip(ev, chip) {
   if (!chip.querySelector(".speakerTooltip")) {
     const sp = getSpeakerDetailsByName(chip.dataset.speakerName);
     chip.insertAdjacentHTML("beforeend", buildSpeakerTooltipHTML(sp));
+    updateSpeakerTooltipMoreButton(chip.querySelector(".speakerTooltip"));
   }
 
   chip.classList.add("tooltipOpen");

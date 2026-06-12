@@ -136,39 +136,6 @@ function requestParentMetrics(onMetrics) {
   }
 }
 
-function getElementDocumentCenterY(el) {
-  const r = el.getBoundingClientRect();
-  return r.top + r.height / 2;
-}
-
-function isElementVisibleInParentViewport(el) {
-  if (!el) return false;
-
-  const r = el.getBoundingClientRect();
-
-  if (window.parent === window) {
-    return r.top >= 0 && r.bottom <= window.innerHeight;
-  }
-
-  if (!hasParentMetrics || !parentViewportH) return false;
-
-  const visibleTop = parentScrollTop;
-  const visibleBottom = parentScrollTop + parentViewportH;
-  const margin = 24;
-  return r.top >= visibleTop + margin && r.bottom <= visibleBottom - margin;
-}
-
-function requestParentScrollToElement(el) {
-  if (!el || window.parent === window) return;
-
-  const vh = (hasParentMetrics && parentViewportH) ? parentViewportH : 640;
-  const targetScrollTop = Math.max(0, getElementDocumentCenterY(el) - vh / 2);
-  window.parent.postMessage({
-    ggScrollTo: targetScrollTop,
-    ggScrollBehavior: "smooth"
-  }, "*");
-}
-
 window.addEventListener("message", function(e) {
   if (!e.data || typeof e.data.ggScrollTop !== "number") return;
   parentScrollTop = e.data.ggScrollTop;
@@ -186,13 +153,11 @@ window.addEventListener("message", function(e) {
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
 // the modal box is placed at a vertical anchor (document coords):
-//   • anchorEl given (a speaker card the user clicked in speaker view, or a
-//     session-chip target after the parent page actually scrolled to it) → center
-//     on that visible card. The card and modal move together as the parent scrolls.
+//   • anchorEl given (a speaker card the user clicked or navigated to) → center
+//     on that card. The card and modal move together as the parent scrolls, so
+//     this does not depend on possibly stale parent viewport metrics.
 //   • no anchorEl (fallback) → center on the visible viewport reported by the
-//     parent embed script. In Cvent's no-scroll iframe, scrollIntoView() cannot
-//     move the parent page, so this keeps the modal visible if the parent embed
-//     has not been upgraded to honor ggScrollTo messages yet.
+//     parent.
 function positionModalOverlay(anchorEl) {
   const overlay = document.getElementById("spModalOverlay");
   if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
@@ -866,57 +831,22 @@ function navigateToSpeaker(name) {
 
   requestAnimationFrame(() => {
     const card = document.getElementById(`sp-${slug}`);
+    if (card) {
+card.scrollIntoView({ behavior: "smooth", block: "center" });
+card.classList.remove("highlighted");
+void card.offsetWidth;
+card.classList.add("highlighted");
+setTimeout(() => card.classList.remove("highlighted"), 2800);
 
-    if (!card) {
-      let openedMissingCard = false;
-      const openMissingCard = () => {
-        if (openedMissingCard) return;
-        openedMissingCard = true;
-        openSpeakerModal(slug);
-      };
-      requestParentMetrics(openMissingCard);
-      window.setTimeout(openMissingCard, 350);
-      return;
+// When coming from a session card, the parent-page viewport metrics can
+// still describe the old agenda position (or be missing entirely). Anchor
+// the modal to the newly revealed speaker card instead, matching the
+// behavior of clicking a speaker directly inside speaker view.
+openSpeakerModal(slug, card);
+return;
     }
-
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.classList.remove("highlighted");
-    void card.offsetWidth;
-    card.classList.add("highlighted");
-    setTimeout(() => card.classList.remove("highlighted"), 2800);
-
-    if (window.parent === window) {
-      window.setTimeout(() => openSpeakerModal(slug, card), 250);
-      return;
-    }
-
-    // Session speaker chips run inside Cvent's full-height, scrolling="no"
-    // iframe. The child iframe cannot directly scroll the parent Cvent page, so
-    // regular scrollIntoView() can move the speaker card inside the iframe's
-    // layout without moving the user's real viewport. Ask the parent embed to
-    // scroll to the card via ggScrollTo; if the embed has not implemented that
-    // optional message yet, fall back to opening the modal in the current visible
-    // Cvent viewport instead of leaving it stranded down by the off-screen card.
-    let opened = false;
-    const openOnce = (anchorEl) => {
-      if (opened) return;
-      opened = true;
-      openSpeakerModal(slug, anchorEl);
-    };
-
-    requestParentMetrics(() => {
-      requestParentScrollToElement(card);
-
-      window.setTimeout(() => {
-        requestParentMetrics(() => {
-          openOnce(isElementVisibleInParentViewport(card) ? card : null);
-        });
-      }, 650);
-    });
-
-    window.setTimeout(() => {
-      openOnce(isElementVisibleInParentViewport(card) ? card : null);
-    }, hasParentMetrics ? 1200 : 1600);
+    // Fallback for unexpected missing cards: use parent metrics if available.
+    openSpeakerModal(slug);
   });
 }
 

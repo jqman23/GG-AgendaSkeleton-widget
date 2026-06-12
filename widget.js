@@ -122,6 +122,52 @@ let parentScrollTop  = 0;
 let parentViewportH  = 0;
 let hasParentMetrics = false;
 let modalAnchorEl    = null; // element the open modal is anchored to (a speaker card)
+let pendingMetricsCallbacks = [];
+
+function requestParentMetrics(onMetrics) {
+  if (typeof onMetrics === "function") {
+    pendingMetricsCallbacks.push(onMetrics);
+  }
+
+  if (window.parent !== window) {
+    window.parent.postMessage({ ggRequestMetrics: true }, "*");
+  } else if (typeof onMetrics === "function") {
+    window.requestAnimationFrame(onMetrics);
+  }
+}
+
+function getElementDocumentCenterY(el) {
+  const r = el.getBoundingClientRect();
+  return r.top + r.height / 2;
+}
+
+function isElementVisibleInParentViewport(el) {
+  if (!el) return false;
+
+  const r = el.getBoundingClientRect();
+
+  if (window.parent === window) {
+    return r.top >= 0 && r.bottom <= window.innerHeight;
+  }
+
+  if (!hasParentMetrics || !parentViewportH) return false;
+
+  const visibleTop = parentScrollTop;
+  const visibleBottom = parentScrollTop + parentViewportH;
+  const margin = 24;
+  return r.top >= visibleTop + margin && r.bottom <= visibleBottom - margin;
+}
+
+function requestParentScrollToElement(el) {
+  if (!el || window.parent === window) return;
+
+  const vh = (hasParentMetrics && parentViewportH) ? parentViewportH : 640;
+  const targetScrollTop = Math.max(0, getElementDocumentCenterY(el) - vh / 2);
+  window.parent.postMessage({
+    ggScrollTo: targetScrollTop,
+    ggScrollBehavior: "smooth"
+  }, "*");
+}
 
 window.addEventListener("message", function(e) {
   if (!e.data || typeof e.data.ggScrollTop !== "number") return;
@@ -130,16 +176,23 @@ window.addEventListener("message", function(e) {
     parentViewportH = e.data.ggViewportHeight;
   }
   hasParentMetrics = true;
+
+  const callbacks = pendingMetricsCallbacks;
+  pendingMetricsCallbacks = [];
+  callbacks.forEach(cb => cb());
+
   positionModalOverlay(modalAnchorEl); // keep an open modal pinned while scrolling
 });
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
 // the modal box is placed at a vertical anchor (document coords):
-//   • anchorEl given (a speaker card the user clicked) → center on that card. It is
-//     on-screen by definition, so this needs NO parent scroll metrics — this is what
-//     makes speaker-view clicks reliable deep in a long, scrolled list.
-//   • no anchorEl (navigated from a session chip) → center on the visible viewport
-//     reported by the parent, since the freshly-rendered card may be off-screen.
+//   • anchorEl given (a speaker card the user clicked in speaker view, or a
+//     session-chip target after the parent page actually scrolled to it) → center
+//     on that visible card. The card and modal move together as the parent scrolls.
+//   • no anchorEl (fallback) → center on the visible viewport reported by the
+//     parent embed script. In Cvent's no-scroll iframe, scrollIntoView() cannot
+//     move the parent page, so this keeps the modal visible if the parent embed
+//     has not been upgraded to honor ggScrollTo messages yet.
 function positionModalOverlay(anchorEl) {
   const overlay = document.getElementById("spModalOverlay");
   if (!overlay || overlay.style.display === "none" || overlay.style.display === "") return;
@@ -724,7 +777,7 @@ function openSpeakerModal(slug, ev) {
   positionModalOverlay(anchorEl);
   // Ask the parent for fresh viewport metrics in case nothing has scrolled yet;
   // the response arrives via postMessage and re-runs positionModalOverlay().
-  if (window.parent !== window) window.parent.postMessage({ ggRequestMetrics: true }, "*");
+  requestParentMetrics();
   queueWidgetHeightPost();
 }
 
@@ -810,18 +863,60 @@ function navigateToSession(blockKey, sessionCode) {
 function navigateToSpeaker(name) {
   if (!inSpeakerView) toggleSpeakerView();
   const slug = speakerSlug(name);
+
   requestAnimationFrame(() => {
     const card = document.getElementById(`sp-${slug}`);
-    if (card) {
-      card.scrollIntoView({ behavior: "smooth", block: "center" });
-      card.classList.remove("highlighted");
-      void card.offsetWidth;
-      card.classList.add("highlighted");
-      setTimeout(() => card.classList.remove("highlighted"), 2800);
+
+    if (!card) {
+      let openedMissingCard = false;
+      const openMissingCard = () => {
+        if (openedMissingCard) return;
+        openedMissingCard = true;
+        openSpeakerModal(slug);
+      };
+      requestParentMetrics(openMissingCard);
+      window.setTimeout(openMissingCard, 350);
+      return;
     }
-    // Don't anchor to card here — smooth scroll hasn't completed so the card
-    // is still off-screen. Viewport centering (parentScrollTop + vh/2) is correct.
-    openSpeakerModal(slug);
+
+    card.scrollIntoView({ behavior: "smooth", block: "center" });
+    card.classList.remove("highlighted");
+    void card.offsetWidth;
+    card.classList.add("highlighted");
+    setTimeout(() => card.classList.remove("highlighted"), 2800);
+
+    if (window.parent === window) {
+      window.setTimeout(() => openSpeakerModal(slug, card), 250);
+      return;
+    }
+
+    // Session speaker chips run inside Cvent's full-height, scrolling="no"
+    // iframe. The child iframe cannot directly scroll the parent Cvent page, so
+    // regular scrollIntoView() can move the speaker card inside the iframe's
+    // layout without moving the user's real viewport. Ask the parent embed to
+    // scroll to the card via ggScrollTo; if the embed has not implemented that
+    // optional message yet, fall back to opening the modal in the current visible
+    // Cvent viewport instead of leaving it stranded down by the off-screen card.
+    let opened = false;
+    const openOnce = (anchorEl) => {
+      if (opened) return;
+      opened = true;
+      openSpeakerModal(slug, anchorEl);
+    };
+
+    requestParentMetrics(() => {
+      requestParentScrollToElement(card);
+
+      window.setTimeout(() => {
+        requestParentMetrics(() => {
+          openOnce(isElementVisibleInParentViewport(card) ? card : null);
+        });
+      }, 650);
+    });
+
+    window.setTimeout(() => {
+      openOnce(isElementVisibleInParentViewport(card) ? card : null);
+    }, hasParentMetrics ? 1200 : 1600);
   });
 }
 

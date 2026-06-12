@@ -1,0 +1,56 @@
+<iframe
+  id="gg-widget"
+  src="https://gg-agenda-skeleton-widget.vercel.app/"
+  width="100%"
+  height="100"
+  style="border:none;display:block;overflow:hidden;"
+  scrolling="no"
+></iframe>
+<script>
+  var ggFrame = document.getElementById("gg-widget");
+
+  // 1. Grow the iframe to fit the widget's content.
+  window.addEventListener("message", function (e) {
+    if (e.data && e.data.ggWidgetHeight) {
+      ggFrame.height = e.data.ggWidgetHeight;
+    }
+
+    // 2. Let the widget ask Cvent to scroll the parent page to a spot inside
+    //    the full-height iframe. This is required because a cross-origin child
+    //    iframe cannot directly scroll the parent Cvent page.
+    if (e.data && typeof e.data.ggScrollTo === "number") {
+      var rect = ggFrame.getBoundingClientRect();
+      var targetY = window.pageYOffset + rect.top + e.data.ggScrollTo;
+      window.scrollTo({
+        top: Math.max(0, targetY),
+        behavior: e.data.ggScrollBehavior || "smooth"
+      });
+      window.setTimeout(ggSendMetrics, 80);
+      window.setTimeout(ggSendMetrics, 350);
+    }
+
+    // 3. Widget asks for metrics when it opens a modal — answer immediately.
+    if (e.data && e.data.ggRequestMetrics) {
+      ggSendMetrics();
+    }
+  });
+
+  // 4. Tell the widget which slice of itself is actually on screen.
+  function ggSendMetrics() {
+    var rect = ggFrame.getBoundingClientRect();
+    var vh = window.innerHeight;
+    var visTop = Math.max(0, -rect.top);
+    var visHeight = Math.max(0, Math.min(vh, rect.bottom) - Math.max(0, rect.top));
+    if (ggFrame.contentWindow) {
+      ggFrame.contentWindow.postMessage(
+        { ggScrollTop: visTop, ggViewportHeight: visHeight },
+        "*"
+      );
+    }
+  }
+
+  window.addEventListener("scroll", ggSendMetrics, { passive: true });
+  window.addEventListener("resize", ggSendMetrics);
+  ggFrame.addEventListener("load", ggSendMetrics);
+  ggSendMetrics();
+</script>

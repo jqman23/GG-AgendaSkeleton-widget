@@ -1085,10 +1085,10 @@ function renderSearchSpeakerDetails(name) {
       s ? getSessionLabel(s.type) : ""
     ].filter(Boolean).join(" · ");
 
-    return `<div class="searchSpeakerSession">
+    return `<button type="button" class="searchSpeakerSession" onclick="closeSearch();navigateToSession('${esc(sess.blockKey)}','${esc(sess.code)}')">
       <div class="searchSpeakerSessionName">${esc(sess.name)}</div>
       ${meta ? `<div class="searchSpeakerSessionMeta">${esc(meta)}</div>` : ""}
-    </div>`;
+    </button>`;
   }).join("");
 
   results.innerHTML = `

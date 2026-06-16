@@ -1260,10 +1260,23 @@ body {
   margin-bottom: 8px;
 }
 .searchSpeakerSession {
+  display: block;
+  width: 100%;
+  text-align: left;
   background: #f4f6fa;
+  border: none;
   border-radius: 10px;
   padding: 10px 12px;
   margin-bottom: 7px;
+  font-family: "Montserrat", sans-serif;
+  cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.searchSpeakerSession:hover,
+.searchSpeakerSession:focus {
+  background: rgba(190,190,123,0.25);
+  outline: none;
+  transform: translateY(-1px);
 }
 .searchSpeakerSessionName {
   font-size: 0.78rem;

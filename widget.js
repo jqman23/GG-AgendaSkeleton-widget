@@ -835,18 +835,18 @@ function navigateToSpeaker(name) {
   requestAnimationFrame(() => {
     const card = document.getElementById(`sp-${slug}`);
     if (card) {
-card.scrollIntoView({ behavior: "smooth", block: "center" });
-card.classList.remove("highlighted");
-void card.offsetWidth;
-card.classList.add("highlighted");
-setTimeout(() => card.classList.remove("highlighted"), 2800);
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.remove("highlighted");
+      void card.offsetWidth;
+      card.classList.add("highlighted");
+      setTimeout(() => card.classList.remove("highlighted"), 2800);
 
-// When coming from a session card, the parent-page viewport metrics can
-// still describe the old agenda position (or be missing entirely). Anchor
-// the modal to the newly revealed speaker card instead, matching the
-// behavior of clicking a speaker directly inside speaker view.
-openSpeakerModal(slug, card);
-return;
+      // When coming from a session card or search, the parent-page viewport
+      // metrics can still describe the old agenda position (or be missing
+      // entirely). Anchor the modal to the newly revealed speaker card instead,
+      // matching the behavior of clicking a speaker directly inside speaker view.
+      openSpeakerModal(slug, card);
+      return;
     }
     // Fallback for unexpected missing cards: use parent metrics if available.
     openSpeakerModal(slug);
@@ -1039,7 +1039,7 @@ function selectSearchSession(blockKey, code) {
 
 function selectSearchSpeaker(name) {
   closeSearch();
-  navigateToSpeakerTile(name);
+  navigateToSpeaker(name);
 }
 
 let activeSpeakerTooltipChip = null;

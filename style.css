@@ -22,12 +22,21 @@ body {
   font-size: 17.14px; /* scales everything so 1.05rem ≈ 18px */
 }
 .topBar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 24px;
+  margin: 0 -12px 24px;
+  padding: 12px;
   flex-wrap: wrap;
   gap: 12px;
+  background: rgba(247, 248, 251, 0.94);
+  border-radius: 0 0 16px 16px;
+  box-shadow: 0 10px 26px rgba(18,35,69,0.08);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 .dayToggle {
   display: flex;

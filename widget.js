@@ -1361,8 +1361,14 @@ function buildAgendaPdfDoc(selectedZone) {
       });
     });
 
+    // Day-1 ("Skill Building Institutes") label links out to the info page; the
+    // clickable annotation is added after rasterization (see mergeCoverAndAgenda).
+    const labelHtml = day === "day1"
+      ? `<span id="aSkillLink" class="aDayLink">${pdfEsc(meta.label)}<span class="aDayLinkIcon">&#8599;</span></span>`
+      : `<span>${pdfEsc(meta.label)}</span>`;
+
     return `<section class="aDay">
-      <div class="aDayHeader"><h2>${pdfEsc(dateLabel)}</h2><span>${pdfEsc(meta.label)}</span></div>
+      <div class="aDayHeader"><h2>${pdfEsc(dateLabel)}</h2>${labelHtml}</div>
       <div class="aRows">${rows.join("")}</div>
     </section>`;
   }).join("");
@@ -1378,6 +1384,8 @@ function buildAgendaPdfDoc(selectedZone) {
   .aDayHeader{page-break-after:avoid;margin:0 0 10px;padding-bottom:8px;border-bottom:2px solid #122345;display:flex;align-items:baseline;gap:12px;}
   .aDayHeader h2{margin:0;color:#122345;font-size:18px;line-height:1.1;font-weight:800;}
   .aDayHeader span{color:#187089;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;}
+  .aDayLink{text-decoration:underline;}
+  .aDayLinkIcon{font-size:9px;margin-left:2px;text-decoration:none;display:inline-block;}
   .aRows{width:100%;}
   .aRow{page-break-inside:avoid;display:grid;grid-template-columns:1.05in minmax(0,1fr);gap:18px;padding:14px 0 15px;border-bottom:1px solid #e6edf3;}
   .aRow:last-child{border-bottom:0;}
@@ -1447,14 +1455,24 @@ function renderAgendaPagesBytes(selectedZone) {
       ? Promise.resolve()
       : new Promise(r => { img.onload = r; img.onerror = r; }));
 
+    let linkRect = null;
     Promise.all(imgReady)
       .then(() => new Promise(r => setTimeout(r, 400)))
-      .then(() => new Promise((res, rej) => {
-        const sc = iDoc.createElement("script");
-        sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-        sc.onload = res; sc.onerror = rej;
-        iDoc.head.appendChild(sc);
-      }))
+      .then(() => {
+        // Measure the "Skill Building Institutes" link in HTML px (the iframe never
+        // scrolls, so getBoundingClientRect is the document position) before raster.
+        const el = iDoc.getElementById("aSkillLink");
+        if (el) {
+          const r = el.getBoundingClientRect();
+          linkRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+        }
+        return new Promise((res, rej) => {
+          const sc = iDoc.createElement("script");
+          sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+          sc.onload = res; sc.onerror = rej;
+          iDoc.head.appendChild(sc);
+        });
+      })
       .then(() => iframe.contentWindow.html2pdf().set({
         margin: 0,
         image: { type: "jpeg", quality: 0.92 },
@@ -1464,21 +1482,23 @@ function renderAgendaPagesBytes(selectedZone) {
       }).from(iDoc.body).outputPdf("arraybuffer"))
       // The buffer is created in the iframe's realm; copy it into the main realm
       // BEFORE the iframe is removed, or it becomes detached during the merge.
-      .then(buf => { const copy = new Uint8Array(buf).slice(); cleanup(); resolve(copy); })
+      .then(buf => { const copy = new Uint8Array(buf).slice(); cleanup(); resolve({ bytes: copy, linkRect }); })
       .catch(err => { cleanup(); reject(err); });
   });
 }
 
 // Prepend the hosted cover (with the timezone note drawn on it) to the agenda
 // pages and return the merged PDF bytes.
-async function mergeCoverAndAgenda(agendaBytes, tzNote) {
+const PDF_SKILL_LINK_URL = "https://cvent.me/Xmd3Oo";
+
+async function mergeCoverAndAgenda(agendaBytes, tzNote, linkRect) {
   await Promise.all([loadScriptOnce(PDFLIB_SRC), loadScriptOnce(FONTKIT_SRC)]);
   const [coverResp, fontResp] = await Promise.all([fetch(PDF_COVER_URL), fetch(MONTSERRAT_TTF)]);
   if (!coverResp.ok) throw new Error("Cover fetch failed: " + coverResp.status);
   const coverBytes = await coverResp.arrayBuffer();
   const fontBytes  = await fontResp.arrayBuffer();
 
-  const { PDFDocument, rgb } = window.PDFLib;
+  const { PDFDocument, PDFName, PDFString, rgb } = window.PDFLib;
   const coverDoc  = await PDFDocument.load(coverBytes);
   coverDoc.registerFontkit(window.fontkit);
   const agendaDoc = await PDFDocument.load(agendaBytes);
@@ -1499,6 +1519,34 @@ async function mergeCoverAndAgenda(agendaBytes, tzNote) {
   // Append the agenda pages after the cover.
   const copied = await coverDoc.copyPages(agendaDoc, agendaDoc.getPageIndices());
   copied.forEach(p => coverDoc.addPage(p));
+
+  // Make the day-1 "Skill Building Institutes" label a clickable link. The agenda
+  // is rasterized (no live links), so add a Link annotation at the measured spot.
+  if (linkRect && linkRect.width) {
+    const SCALE = 612 / 816;            // html px → pt (content 816px → 612pt page)
+    const PAGE_H_PX = 792 / SCALE;      // one page = 1056 html px tall
+    const pageIdx = Math.max(0, Math.floor(linkRect.top / PAGE_H_PX));
+    const yInPage = linkRect.top - pageIdx * PAGE_H_PX;
+    const x1 = linkRect.left * SCALE;
+    const x2 = (linkRect.left + linkRect.width) * SCALE;
+    const yTopPt = yInPage * SCALE;
+    const hPt = linkRect.height * SCALE;
+    const target = coverDoc.getPage(pageIdx + 1); // +1 for the cover page
+    if (target) {
+      const ph = target.getSize().height;
+      const ctx = coverDoc.context;
+      const annot = ctx.obj({
+        Type: "Annot", Subtype: "Link",
+        Rect: [x1, ph - yTopPt - hPt, x2, ph - yTopPt],
+        Border: [0, 0, 0],
+        A: ctx.obj({ Type: "Action", S: "URI", URI: PDFString.of(PDF_SKILL_LINK_URL) })
+      });
+      const ref = ctx.register(annot);
+      const existing = target.node.Annots();
+      if (existing) existing.push(ref);
+      else target.node.set(PDFName.of("Annots"), ctx.obj([ref]));
+    }
+  }
 
   return coverDoc.save();
 }
@@ -1525,7 +1573,7 @@ function downloadAgendaPDF() {
   };
 
   renderAgendaPagesBytes(selectedZone)
-    .then(agendaBytes => mergeCoverAndAgenda(agendaBytes, tzNote))
+    .then(({ bytes, linkRect }) => mergeCoverAndAgenda(bytes, tzNote, linkRect))
     .then(mergedBytes => {
       const blob = new Blob([mergedBytes], { type: "application/pdf" });
       const url  = URL.createObjectURL(blob);

@@ -2,6 +2,7 @@
 // Using Google's favicon service (stable) and Microsoft's CDN icon (stable)
 const SVG_GCAL    = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/18455c8f54504314847defa08b8dcda2.png" width="16" height="16" alt="Google Calendar" style="display:block;">`;
 const SVG_OUTLOOK = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/17c86dcff13d41a386d3607a4f6fd948.png" width="16" height="16" alt="Outlook Calendar" style="display:block;">`;
+const SVG_LINKEDIN = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>`;
 
 // ─── ICONS ───────────────────────────────────────────────────────────────────
 const icons = {
@@ -1030,11 +1031,13 @@ function buildSessionsHTML(blockKey) {
       ${sessions.map(s => {
         const descId = `desc-${esc(s.code)}`;
         const calLinks = buildCalUrls(s, blockKey);
-        const calBtnsHtml = calLinks ? `<div class="calBtns">
-          <a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Add to Google Calendar">${SVG_GCAL}</a>
+        const shareBtnHtml = `<button class="linkedin-btn" onclick="event.stopPropagation();shareLinkedIn('${esc(s.code)}')" title="Share on LinkedIn">${SVG_LINKEDIN}Share</button>`;
+        const calBtnsHtml = `<div class="calBtns">
+          ${calLinks ? `<a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Add to Google Calendar">${SVG_GCAL}</a>
           <a class="calBtn calOutlook" href="${esc(calLinks.outlook)}" target="_blank" rel="noopener" title="Add to Outlook Calendar">${SVG_OUTLOOK}</a>
-          <button class="calBtn calIcs" onclick="event.stopPropagation();downloadICS('${esc(s.code)}')" title="Download .ics">&#8595;</button>
-        </div>` : "";
+          <button class="calBtn calIcs" onclick="event.stopPropagation();downloadICS('${esc(s.code)}')" title="Download .ics">&#8595;</button>` : ""}
+          ${shareBtnHtml}
+        </div>`;
         const tagsHtml = (s.tags && s.tags.length)
           ? `<div class="sessionTagLine">${s.tags.map(t => esc(t)).join(" · ")}</div>`
           : "";
@@ -1091,6 +1094,96 @@ function toggleDesc(btn, descId) {
   queueWidgetHeightPost();
 }
 
+// ─── LINKEDIN SHARE ───────────────────────────────────────────────────────────
+// Opens a modal with an editable, pre-written LinkedIn post for the session.
+// LinkedIn's public share URL can't pre-fill post body text, so we let the user
+// copy the text and open LinkedIn's composer with the event URL attached.
+function shareLinkedIn(code) {
+  const s = (typeof sessionMap !== "undefined" && sessionMap[code]) || null;
+  if (!s) return;
+
+  const tz      = timezoneSelect.value;
+  const tzAbbr  = getTzAbbreviation(tz);
+  const info    = blockTimeMap[s.blockKey] || [];
+  const sd      = info[0];
+  const st      = info[1];
+  const endTime = s.endTime || info[3];
+  const startUtc = easternToUtc(sd, st);
+  const endUtc   = easternToUtc(sd, endTime);
+
+  const dateStr = startUtc.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: tz });
+  const timeStr = formatInTimezone(startUtc, tz) + " – " + formatInTimezone(endUtc, tz) + (tzAbbr ? " " + tzAbbr : "");
+
+  const typeLabel = PDF_TYPE_LABEL[s.type] || getSessionLabel(s.type) || "session";
+  const article   = /^[aeiou]/i.test(typeLabel) ? "an" : "a";
+  const descText  = (s.description || "").replace(/<[^>]*>/g, "").trim();
+  const tagStr    = (s.tags || []).map(t => "#" + t.replace(/[^A-Za-z0-9]/g, "")).filter(t => t.length > 1).join(" ");
+  const fixedTags = "#FutureOfChildWelfare #ChildWelfare #SocialWork";
+
+  const post = `I'm excited to be joining "${s.name}" — ${article} ${typeLabel} at the 2026 Global Gathering for the Future of Child Welfare! 🌟`
+    + (descText ? `\n\n${descText}` : "")
+    + `\n\n📅 ${dateStr}\n⏰ ${timeStr}`
+    + `\n\nLearn more and register: https://www.futureofchildwelfare.org`
+    + `\n\n${tagStr ? tagStr + " " : ""}${fixedTags}`;
+
+  const overlay = document.createElement("div");
+  overlay.className = "li-modal-overlay";
+  overlay.innerHTML = `
+    <div class="li-modal" role="dialog" aria-modal="true">
+      <div class="li-modal-header">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="#0A66C2" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+        Share on LinkedIn
+      </div>
+      <textarea id="li-post-text" spellcheck="false"></textarea>
+      <div class="li-modal-hint">Edit if you like, copy the text, then click Open LinkedIn to paste and post.</div>
+      <div class="li-modal-actions">
+        <button class="li-modal-close" id="li-close-btn">Cancel</button>
+        <button class="li-modal-copy" id="li-copy-btn">Copy Text</button>
+        <button class="li-modal-open" id="li-open-btn">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+          Open LinkedIn
+        </button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+
+  const ta       = overlay.querySelector("#li-post-text");
+  const copyBtn  = overlay.querySelector("#li-copy-btn");
+  const openBtn  = overlay.querySelector("#li-open-btn");
+  const closeBtn = overlay.querySelector("#li-close-btn");
+  ta.value = post; // set via value (not innerHTML) so special chars are safe
+
+  const doClose = () => { try { document.body.removeChild(overlay); } catch (e) {} document.removeEventListener("keydown", onKey); };
+  const onKey = e => { if (e.key === "Escape") doClose(); };
+  document.addEventListener("keydown", onKey);
+  overlay.addEventListener("click", e => { if (e.target === overlay) doClose(); });
+  closeBtn.addEventListener("click", doClose);
+
+  const doCopy = () => {
+    const text = ta.value;
+    ta.select();
+    try { document.execCommand("copy"); } catch (e) {}
+    if (navigator.clipboard) navigator.clipboard.writeText(text).catch(() => {});
+    copyBtn.textContent = "Copied!";
+    copyBtn.style.background = "#e6f4ea";
+    copyBtn.style.borderColor = "#2e7d32";
+    copyBtn.style.color = "#2e7d32";
+    setTimeout(() => {
+      copyBtn.textContent = "Copy Text";
+      copyBtn.style.background = "";
+      copyBtn.style.borderColor = "";
+      copyBtn.style.color = "";
+    }, 2000);
+  };
+  copyBtn.addEventListener("click", doCopy);
+
+  openBtn.addEventListener("click", () => {
+    doCopy();
+    const liUrl = "https://www.linkedin.com/shareArticle?mini=true&url=" + encodeURIComponent("https://www.futureofchildwelfare.org");
+    setTimeout(() => window.open(liUrl, "_blank", "width=600,height=600,noopener,noreferrer"), 300);
+  });
+}
+
 let openBlockEl = null;
 
 function togglePanel(blockWrap, forceOpen) {
@@ -1139,13 +1232,14 @@ const PDF_DAY_META = {
 };
 
 // Hosted cover page (letter, 612×792pt). It becomes page 1 of the export, with
-// the timezone note drawn on top. Box from the design: {x:39,y:24,w:194,h:35}
-// measured from the TOP-LEFT in points.
+// the timezone note drawn on top in Montserrat, white, anchored bottom-right.
 const PDF_COVER_URL = "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/91a9cf22b19c4793b69e31d85d32eeca.pdf";
-const PDF_COVER_TZ_BOX = { x: 39, y: 24, width: 194, height: 35 };
-const PDF_COVER_TZ_SIZE = 11;          // font size in pt
-const PDF_COVER_TZ_RGB  = [1, 1, 1];   // white — change if the cover is light there
-const PDFLIB_SRC = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
+const PDF_COVER_TZ_SIZE   = 12;             // font size in pt
+const PDF_COVER_TZ_RGB    = [1, 1, 1];      // white
+const PDF_COVER_TZ_MARGIN = { right: 48, bottom: 44 }; // pt from the bottom-right corner
+const PDFLIB_SRC     = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
+const FONTKIT_SRC    = "https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js";
+const MONTSERRAT_TTF = "https://cdn.jsdelivr.net/gh/JulietaUla/Montserrat/fonts/ttf/Montserrat-Regular.ttf";
 
 const PDF_TYPE_LABEL = {
   workshop: "Workshop",
@@ -1340,27 +1434,27 @@ function renderAgendaPagesBytes(selectedZone) {
 // Prepend the hosted cover (with the timezone note drawn on it) to the agenda
 // pages and return the merged PDF bytes.
 async function mergeCoverAndAgenda(agendaBytes, tzNote) {
-  const [, coverResp] = await Promise.all([
-    loadScriptOnce(PDFLIB_SRC),
-    fetch(PDF_COVER_URL)
-  ]);
+  await Promise.all([loadScriptOnce(PDFLIB_SRC), loadScriptOnce(FONTKIT_SRC)]);
+  const [coverResp, fontResp] = await Promise.all([fetch(PDF_COVER_URL), fetch(MONTSERRAT_TTF)]);
   if (!coverResp.ok) throw new Error("Cover fetch failed: " + coverResp.status);
   const coverBytes = await coverResp.arrayBuffer();
+  const fontBytes  = await fontResp.arrayBuffer();
 
-  const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+  const { PDFDocument, rgb } = window.PDFLib;
   const coverDoc  = await PDFDocument.load(coverBytes);
+  coverDoc.registerFontkit(window.fontkit);
   const agendaDoc = await PDFDocument.load(agendaBytes);
 
-  // Draw the timezone note onto the cover at the requested top-left box.
+  // Draw the timezone note onto the cover in Montserrat, anchored bottom-right.
+  const font = await coverDoc.embedFont(fontBytes);
   const page = coverDoc.getPage(0);
-  const { height } = page.getSize();
-  const font = await coverDoc.embedFont(StandardFonts.Helvetica);
-  const size = PDF_COVER_TZ_SIZE;
-  const box  = PDF_COVER_TZ_BOX;
-  // Vertically center the baseline within the box (top-left origin → bottom-left).
-  const baselineY = height - box.y - (box.height + size * 0.72) / 2;
+  const { width } = page.getSize();
+  const size  = PDF_COVER_TZ_SIZE;
+  const textW = font.widthOfTextAtSize(tzNote, size);
   page.drawText(tzNote, {
-    x: box.x, y: baselineY, size, font,
+    x: width - PDF_COVER_TZ_MARGIN.right - textW,
+    y: PDF_COVER_TZ_MARGIN.bottom,
+    size, font,
     color: rgb(PDF_COVER_TZ_RGB[0], PDF_COVER_TZ_RGB[1], PDF_COVER_TZ_RGB[2])
   });
 

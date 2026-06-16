@@ -462,6 +462,70 @@ body {
   line-height: 1;
 }
 .calBtn:hover { transform: scale(1.15); opacity: 0.82; }
+
+/* ── LinkedIn share ─────────────────────────────────────────── */
+.linkedin-btn {
+  border: none;
+  background: none;
+  font-family: "Montserrat", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #bbb;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  margin-left: 6px;
+  transition: color .15s;
+  flex-shrink: 0;
+}
+.linkedin-btn:hover { color: #0A66C2; }
+.li-modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 99999;
+}
+.li-modal {
+  background: #fff; border-radius: 12px; padding: 24px;
+  width: min(480px, 92vw); box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+  font-family: "Montserrat", sans-serif;
+}
+.li-modal-header {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.9rem; font-weight: 700; color: #122345; margin-bottom: 14px;
+}
+.li-modal-header svg { flex-shrink: 0; }
+.li-modal textarea {
+  width: 100%; height: 220px; border: 1.5px solid #dde3ec;
+  border-radius: 7px; padding: 10px 12px; font-family: "Montserrat", sans-serif;
+  font-size: 0.78rem; line-height: 1.55; color: #222; resize: vertical;
+  box-sizing: border-box; outline: none;
+}
+.li-modal textarea:focus { border-color: #0A66C2; }
+.li-modal-hint {
+  font-size: 0.7rem; color: #888; margin-top: 6px; margin-bottom: 16px;
+}
+.li-modal-actions { display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
+.li-modal-copy {
+  padding: 8px 16px; border-radius: 6px; font-family: "Montserrat", sans-serif;
+  font-size: 0.78rem; font-weight: 600; cursor: pointer;
+  border: 1.5px solid #0A66C2; background: #fff; color: #0A66C2; transition: background .15s;
+}
+.li-modal-copy:hover { background: #e8f0fb; }
+.li-modal-open {
+  padding: 8px 16px; border-radius: 6px; font-family: "Montserrat", sans-serif;
+  font-size: 0.78rem; font-weight: 700; cursor: pointer;
+  border: none; background: #0A66C2; color: #fff; transition: background .15s;
+  display: flex; align-items: center; gap: 6px;
+}
+.li-modal-open:hover { background: #004182; }
+.li-modal-close {
+  margin-right: auto; padding: 8px 10px; border-radius: 6px;
+  font-family: "Montserrat", sans-serif; font-size: 0.78rem; font-weight: 600;
+  cursor: pointer; border: none; background: none; color: #999;
+}
+.li-modal-close:hover { color: #444; }
 .calGcal    { background: transparent; border: none; padding: 0; }
 .calOutlook { background: transparent; border: none; padding: 0; }
 .calIcs     { background: rgba(18,35,69,0.09); color: #122345; font-size: 0.78rem; }

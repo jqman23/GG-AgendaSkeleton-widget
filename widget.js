@@ -1138,6 +1138,15 @@ const PDF_DAY_META = {
   day3: { label: "The Global Gathering",      date: "2026-10-08" }
 };
 
+// Hosted cover page (letter, 612×792pt). It becomes page 1 of the export, with
+// the timezone note drawn on top. Box from the design: {x:39,y:24,w:194,h:35}
+// measured from the TOP-LEFT in points.
+const PDF_COVER_URL = "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/91a9cf22b19c4793b69e31d85d32eeca.pdf";
+const PDF_COVER_TZ_BOX = { x: 39, y: 24, width: 194, height: 35 };
+const PDF_COVER_TZ_SIZE = 11;          // font size in pt
+const PDF_COVER_TZ_RGB  = [1, 1, 1];   // white — change if the cover is light there
+const PDFLIB_SRC = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
+
 const PDF_TYPE_LABEL = {
   workshop: "Workshop",
   strategy: "Strategy Session",
@@ -1239,14 +1248,6 @@ function buildAgendaPdfDoc(selectedZone) {
 <style>
   *{box-sizing:border-box;margin:0;padding:0;}
   body{font-family:'Montserrat',Arial,sans-serif;background:#fff;width:816px;color:#172033;letter-spacing:-.01em;}
-  .aCover{width:816px;height:1056px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;position:relative;overflow:hidden;background:linear-gradient(135deg,#122345 0%,#1b3d68 58%,#187089 100%);color:#fff;padding:67px;}
-  .aCover:before{content:"";position:absolute;width:3.4in;height:3.4in;border-radius:999px;right:-1.15in;top:-1.1in;background:rgba(254,227,183,.18);}
-  .aCover:after{content:"";position:absolute;width:2.1in;height:2.1in;border-radius:999px;left:-.75in;bottom:-.65in;background:rgba(190,190,123,.22);}
-  .aCoverInner{position:relative;z-index:1;max-width:6.25in;}
-  .aKicker{color:#fee3b7;font-size:11px;line-height:1.35;font-weight:900;text-transform:uppercase;letter-spacing:.13em;margin-bottom:14px;}
-  .aCover h1{margin:0;color:#fff;font-size:42px;line-height:1.02;font-weight:800;letter-spacing:-.03em;max-width:6.1in;}
-  .aCoverTitle{margin-top:18px;padding-top:18px;border-top:4px solid rgba(254,227,183,.88);color:#fff;font-size:22px;line-height:1.15;font-weight:800;}
-  .aCoverDate{margin-top:24px;display:inline-flex;width:max-content;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:9px 14px;color:#fff;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;}
   .aContent{width:816px;box-sizing:border-box;padding:56px 64px 60px;background:#fff;}
   .aDay{margin-top:26px;page-break-inside:auto;}
   .aDay:first-of-type{margin-top:0;}
@@ -1272,14 +1273,6 @@ function buildAgendaPdfDoc(selectedZone) {
   .aDesc-tbd{font-style:italic;color:#64748b;}
   .aFooter{margin-top:26px;padding-top:10px;border-top:1px solid #dbe3ee;display:flex;justify-content:space-between;gap:14px;color:#64748b;font-size:7.6px;font-weight:700;}
 </style></head><body>
-  <section class="aCover">
-    <div class="aCoverInner">
-      <div class="aKicker">A reimagined three-day virtual convening</div>
-      <h1>A Global Gathering for the Future of Child Welfare</h1>
-      <div class="aCoverTitle">October 6&ndash;8, 2026 &nbsp;|&nbsp; Program Agenda</div>
-      <div class="aCoverDate">${pdfEsc(tzNote)}</div>
-    </div>
-  </section>
   <main class="aContent">
     ${daysHtml}
     <div class="aFooter">
@@ -1292,6 +1285,92 @@ function buildAgendaPdfDoc(selectedZone) {
 
 let pdfInFlight = false;
 
+// Lazily load a script into the main window once, caching the promise.
+const _scriptCache = {};
+function loadScriptOnce(src) {
+  if (_scriptCache[src]) return _scriptCache[src];
+  _scriptCache[src] = new Promise((res, rej) => {
+    const sc = document.createElement("script");
+    sc.src = src; sc.onload = res; sc.onerror = () => rej(new Error("Failed to load " + src));
+    document.head.appendChild(sc);
+  });
+  return _scriptCache[src];
+}
+
+// Render the agenda content (no cover) to a PDF and return its bytes.
+function renderAgendaPagesBytes(selectedZone) {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "position:fixed;top:0;left:0;width:816px;height:1100px;border:none;opacity:0.01;pointer-events:none;z-index:-1;";
+    document.body.appendChild(iframe);
+    const cleanup = () => setTimeout(() => { try { document.body.removeChild(iframe); } catch (e) {} }, 1500);
+
+    const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iDoc.open();
+    iDoc.write(buildAgendaPdfDoc(selectedZone));
+    iDoc.close();
+
+    const imgEls = Array.from(iDoc.querySelectorAll("img"));
+    const imgReady = imgEls.map(img => img.complete
+      ? Promise.resolve()
+      : new Promise(r => { img.onload = r; img.onerror = r; }));
+
+    Promise.all(imgReady)
+      .then(() => new Promise(r => setTimeout(r, 400)))
+      .then(() => new Promise((res, rej) => {
+        const sc = iDoc.createElement("script");
+        sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+        sc.onload = res; sc.onerror = rej;
+        iDoc.head.appendChild(sc);
+      }))
+      .then(() => iframe.contentWindow.html2pdf().set({
+        margin: 0,
+        image: { type: "jpeg", quality: 0.92 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", width: 816, windowWidth: 816 },
+        jsPDF: { unit: "pt", format: [612, 792], orientation: "portrait", compress: true },
+        pagebreak: { mode: ["legacy"], avoid: [".aRow", ".aDayHeader"] }
+      }).from(iDoc.body).outputPdf("arraybuffer"))
+      // The buffer is created in the iframe's realm; copy it into the main realm
+      // BEFORE the iframe is removed, or it becomes detached during the merge.
+      .then(buf => { const copy = new Uint8Array(buf).slice(); cleanup(); resolve(copy); })
+      .catch(err => { cleanup(); reject(err); });
+  });
+}
+
+// Prepend the hosted cover (with the timezone note drawn on it) to the agenda
+// pages and return the merged PDF bytes.
+async function mergeCoverAndAgenda(agendaBytes, tzNote) {
+  const [, coverResp] = await Promise.all([
+    loadScriptOnce(PDFLIB_SRC),
+    fetch(PDF_COVER_URL)
+  ]);
+  if (!coverResp.ok) throw new Error("Cover fetch failed: " + coverResp.status);
+  const coverBytes = await coverResp.arrayBuffer();
+
+  const { PDFDocument, StandardFonts, rgb } = window.PDFLib;
+  const coverDoc  = await PDFDocument.load(coverBytes);
+  const agendaDoc = await PDFDocument.load(agendaBytes);
+
+  // Draw the timezone note onto the cover at the requested top-left box.
+  const page = coverDoc.getPage(0);
+  const { height } = page.getSize();
+  const font = await coverDoc.embedFont(StandardFonts.Helvetica);
+  const size = PDF_COVER_TZ_SIZE;
+  const box  = PDF_COVER_TZ_BOX;
+  // Vertically center the baseline within the box (top-left origin → bottom-left).
+  const baselineY = height - box.y - (box.height + size * 0.72) / 2;
+  page.drawText(tzNote, {
+    x: box.x, y: baselineY, size, font,
+    color: rgb(PDF_COVER_TZ_RGB[0], PDF_COVER_TZ_RGB[1], PDF_COVER_TZ_RGB[2])
+  });
+
+  // Append the agenda pages after the cover.
+  const copied = await coverDoc.copyPages(agendaDoc, agendaDoc.getPageIndices());
+  copied.forEach(p => coverDoc.addPage(p));
+
+  return coverDoc.save();
+}
+
 function downloadAgendaPDF() {
   if (pdfInFlight) return;
   pdfInFlight = true;
@@ -1303,46 +1382,26 @@ function downloadAgendaPDF() {
   if (label) label.textContent = "Preparing PDF…";
 
   const selectedZone = timezoneSelect.value;
-  const tzAbbr = (getTzAbbreviation(selectedZone) || "agenda").toLowerCase();
-  const filename = `global-gathering-agenda-${tzAbbr}.pdf`;
-
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = "position:fixed;top:0;left:0;width:816px;height:1100px;border:none;opacity:0.01;pointer-events:none;z-index:-1;";
-  document.body.appendChild(iframe);
-
-  const iDoc = iframe.contentDocument || iframe.contentWindow.document;
-  iDoc.open();
-  iDoc.write(buildAgendaPdfDoc(selectedZone));
-  iDoc.close();
+  const tzAbbr   = getTzAbbreviation(selectedZone);
+  const tzNote   = tzAbbr ? `All times shown in ${tzAbbr}` : "Times shown in your selected time zone";
+  const filename = `global-gathering-agenda-${(tzAbbr || "agenda").toLowerCase()}.pdf`;
 
   const restore = () => {
     if (btn)   btn.classList.remove("is-loading");
     if (label) label.textContent = prevLabel || "Download agenda (PDF)";
-    setTimeout(() => { try { document.body.removeChild(iframe); } catch (e) {} }, 1500);
     pdfInFlight = false;
   };
 
-  const imgEls = Array.from(iDoc.querySelectorAll("img"));
-  const imgReady = imgEls.map(img => img.complete
-    ? Promise.resolve()
-    : new Promise(r => { img.onload = r; img.onerror = r; }));
-
-  Promise.all(imgReady)
-    .then(() => new Promise(r => setTimeout(r, 400)))
-    .then(() => new Promise((res, rej) => {
-      const sc = iDoc.createElement("script");
-      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
-      sc.onload = res; sc.onerror = rej;
-      iDoc.head.appendChild(sc);
-    }))
-    .then(() => iframe.contentWindow.html2pdf().set({
-      margin: 0,
-      filename,
-      image: { type: "jpeg", quality: 0.92 },
-      html2canvas: { scale: 2, useCORS: true, backgroundColor: "#ffffff", width: 816, windowWidth: 816 },
-      jsPDF: { unit: "pt", format: [612, 792], orientation: "portrait", compress: true },
-      pagebreak: { mode: ["legacy"], avoid: [".aRow", ".aDayHeader"] }
-    }).from(iDoc.body).save())
+  renderAgendaPagesBytes(selectedZone)
+    .then(agendaBytes => mergeCoverAndAgenda(agendaBytes, tzNote))
+    .then(mergedBytes => {
+      const blob = new Blob([mergedBytes], { type: "application/pdf" });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+    })
     .catch(err => { console.error("Agenda PDF failed:", err); alert("Sorry — the PDF could not be generated. Please try again."); })
     .finally(restore);
 }

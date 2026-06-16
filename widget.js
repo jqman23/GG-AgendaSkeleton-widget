@@ -151,6 +151,7 @@ window.addEventListener("message", function(e) {
   callbacks.forEach(cb => cb());
 
   positionModalOverlay(modalAnchorEl); // keep an open modal pinned while scrolling
+  positionSearchOverlay();             // keep the search popup pinned too
 });
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
@@ -851,6 +852,192 @@ return;
     openSpeakerModal(slug);
   });
   queueWidgetHeightPost();
+}
+
+// Jump to a speaker's tile in the speaker view and highlight it (no modal).
+function navigateToSpeakerTile(name) {
+  if (!inSpeakerView) toggleSpeakerView();
+  const slug = speakerSlug(name);
+  requestAnimationFrame(() => {
+    const card = document.getElementById("sp-" + slug);
+    if (card) {
+      card.scrollIntoView({ behavior: "smooth", block: "center" });
+      card.classList.remove("highlighted");
+      void card.offsetWidth;
+      card.classList.add("highlighted");
+      setTimeout(() => card.classList.remove("highlighted"), 2800);
+    }
+    queueWidgetHeightPost();
+  });
+}
+
+// ─── SEARCH ───────────────────────────────────────────────────────────────────
+// A global typeahead popup over all sessions and speakers. Selecting a result
+// jumps to that tile and highlights it.
+const SEARCH_DAY_BY_DATE  = { "2026-10-06": "day1", "2026-10-07": "day2", "2026-10-08": "day3" };
+const SEARCH_DAY_SHORT    = { day1: "Oct 6", day2: "Oct 7", day3: "Oct 8" };
+let _searchIndex = null;
+
+function getSearchIndex() {
+  if (_searchIndex) return _searchIndex;
+  const items = [];
+  if (typeof sessionMap !== "undefined") {
+    for (const code in sessionMap) {
+      const s = sessionMap[code];
+      const spk = (s.speakers || []).map(sp => [sp.name, sp.title, sp.org].filter(Boolean).join(" ")).join(" · ");
+      const hay = [s.name, s.theme, (s.tags || []).join(" "), s.description, getSessionLabel(s.type), spk]
+        .filter(Boolean).join("  ").toLowerCase();
+      items.push({
+        kind: "session", code: s.code, blockKey: s.blockKey, name: s.name,
+        type: s.type, theme: s.theme, speakers: (s.speakers || []).map(x => x.name), hay
+      });
+    }
+  }
+  for (const sp of buildSpeakerIndex()) {
+    const hay = [sp.name, sp.title, sp.org, sp.bio].filter(Boolean).join("  ").toLowerCase();
+    items.push({
+      kind: "speaker", name: sp.name, title: sp.title, org: sp.org,
+      photo: sp.photo, sessionCount: (sp.sessions || []).length, hay
+    });
+  }
+  _searchIndex = items;
+  return items;
+}
+
+function searchDateTimeLabel(blockKey) {
+  const date = blockKey.split("|")[0];
+  const day  = SEARCH_DAY_BY_DATE[date];
+  const info = blockTimeMap[blockKey];
+  if (!info) return SEARCH_DAY_SHORT[day] || "";
+  const startUtc = easternToUtc(info[0], info[1]);
+  const endUtc   = easternToUtc(info[0], info[3]);
+  return (SEARCH_DAY_SHORT[day] || "") + " · " + buildTimeLabel(startUtc, endUtc, timezoneSelect.value, day);
+}
+
+function runSearch(query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const tokens = q.split(/\s+/).filter(Boolean);
+  const scored = [];
+  for (const it of getSearchIndex()) {
+    if (!tokens.every(t => it.hay.includes(t))) continue;
+    const nameLc = it.name.toLowerCase();
+    let score = 0;
+    if (nameLc === q) score += 100;
+    if (nameLc.startsWith(q)) score += 50;
+    if (nameLc.includes(q)) score += 25;
+    score += tokens.filter(t => nameLc.includes(t)).length * 5;
+    if (it.kind === "session") score += 1; // tiny tie-break favoring sessions
+    scored.push({ it, score });
+  }
+  scored.sort((a, b) => b.score - a.score || a.it.name.localeCompare(b.it.name));
+  return scored.slice(0, 30).map(r => r.it);
+}
+
+function highlightSearch(text, tokens) {
+  const safe = esc(text || "");
+  if (!tokens || !tokens.length) return safe;
+  const pattern = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).filter(Boolean).join("|");
+  if (!pattern) return safe;
+  try {
+    return safe.replace(new RegExp("(" + pattern + ")", "gi"), '<mark class="searchHl">$1</mark>');
+  } catch (e) { return safe; }
+}
+
+function renderSearchResults() {
+  const input   = document.getElementById("searchInput");
+  const results = document.getElementById("searchResults");
+  if (!input || !results) return;
+  const query = input.value;
+  const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
+
+  if (!tokens.length) {
+    results.innerHTML = `<div class="searchHint">Search by session title, topic, theme, or speaker —<br>across all three days and the speaker directory.</div>`;
+    return;
+  }
+
+  const matches = runSearch(query);
+  if (!matches.length) {
+    results.innerHTML = `<div class="searchEmpty">No matches for “${esc(query.trim())}”.</div>`;
+    return;
+  }
+
+  const rows = matches.map(it => {
+    if (it.kind === "session") {
+      const typeLabel = getSessionLabel(it.type);
+      const metaBits = [searchDateTimeLabel(it.blockKey), typeLabel, it.theme].filter(Boolean).join(" · ");
+      const spk = it.speakers && it.speakers.length ? it.speakers.join(", ") : "";
+      return `<button class="searchResult" data-kind="session" data-block="${esc(it.blockKey)}" data-code="${esc(it.code)}">
+        <span class="srKind srKind--session">Session</span>
+        <span class="srMain">
+          <span class="srTitle">${highlightSearch(it.name, tokens)}</span>
+          <span class="srMeta">${esc(metaBits)}</span>
+          ${spk ? `<span class="srSub">${highlightSearch(spk, tokens)}</span>` : ""}
+        </span>
+      </button>`;
+    }
+    const initials = esc(it.name.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase());
+    const avatar = it.photo
+      ? `<span class="srAvatar"><img src="${esc(it.photo)}" alt=""></span>`
+      : `<span class="srAvatar">${initials}</span>`;
+    const meta = [it.title, it.org].filter(Boolean).join(" · ");
+    const sub  = it.sessionCount ? `${it.sessionCount} session${it.sessionCount > 1 ? "s" : ""}` : "";
+    return `<button class="searchResult" data-kind="speaker" data-name="${esc(it.name)}">
+      ${avatar}
+      <span class="srMain">
+        <span class="srTitle">${highlightSearch(it.name, tokens)}<span class="srKind srKind--speaker">Speaker</span></span>
+        ${meta ? `<span class="srMeta">${highlightSearch(meta, tokens)}</span>` : ""}
+        ${sub ? `<span class="srSub">${sub}</span>` : ""}
+      </span>
+    </button>`;
+  }).join("");
+
+  results.innerHTML = `<div class="searchCount">${matches.length} result${matches.length > 1 ? "s" : ""}</div>${rows}`;
+}
+
+function positionSearchOverlay() {
+  const overlay = document.getElementById("searchOverlay");
+  if (!overlay || overlay.style.display !== "block") return;
+  const modal = overlay.querySelector(".searchModal");
+  overlay.style.height = getDocumentHeight() + "px";
+  const vh = (hasParentMetrics && parentViewportH)
+    ? parentViewportH
+    : (window.parent === window ? window.innerHeight : 640);
+  if (modal) {
+    modal.style.maxHeight = Math.max(280, vh - 48) + "px";
+    modal.style.top = ((hasParentMetrics ? parentScrollTop : window.scrollY) + vh / 2) + "px";
+  }
+}
+
+function openSearch() {
+  const overlay = document.getElementById("searchOverlay");
+  const input   = document.getElementById("searchInput");
+  if (!overlay || !input) return;
+  overlay.style.display = "block";
+  renderSearchResults();
+  positionSearchOverlay();
+  requestParentMetrics(positionSearchOverlay);
+  // Focus after the overlay is painted so mobile keyboards open reliably.
+  setTimeout(() => { input.focus(); input.select(); }, 30);
+}
+
+function closeSearch() {
+  const overlay = document.getElementById("searchOverlay");
+  if (!overlay) return;
+  overlay.style.display = "none";
+  const input = document.getElementById("searchInput");
+  if (input) input.value = "";
+  renderSearchResults();
+}
+
+function selectSearchSession(blockKey, code) {
+  closeSearch();
+  navigateToSession(blockKey, code);
+}
+
+function selectSearchSpeaker(name) {
+  closeSearch();
+  navigateToSpeakerTile(name);
 }
 
 let activeSpeakerTooltipChip = null;
@@ -1702,6 +1889,21 @@ document.getElementById("toggleAllBtn").addEventListener("click", () => {
 document.getElementById("speakerViewBtn").addEventListener("click", toggleSpeakerView);
 
 document.getElementById("downloadPdfBtn").addEventListener("click", downloadAgendaPDF);
+
+// ─── SEARCH LISTENERS ─────────────────────────────────────────────────────────
+document.getElementById("searchOpenBtn").addEventListener("click", openSearch);
+document.getElementById("searchInput").addEventListener("input", renderSearchResults);
+document.getElementById("searchResults").addEventListener("click", e => {
+  const btn = e.target.closest(".searchResult");
+  if (!btn) return;
+  if (btn.dataset.kind === "session") selectSearchSession(btn.dataset.block, btn.dataset.code);
+  else selectSearchSpeaker(btn.dataset.name);
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape" && document.getElementById("searchOverlay").style.display === "block") {
+    closeSearch();
+  }
+});
 
 // ─── IFRAME HEIGHT LISTENERS ─────────────────────────────────────────────────
 window.addEventListener("load", queueWidgetHeightPost);

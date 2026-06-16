@@ -1025,8 +1025,8 @@ body {
 .searchModal {
   position: absolute;
   left: 50%;
-  top: 50%; /* JS overrides with the on-screen anchor */
-  transform: translate(-50%, -50%);
+  top: 80px; /* JS overrides with the on-screen anchor (near viewport top) */
+  transform: translateX(-50%);
   width: calc(100% - 32px);
   max-width: 560px;
   max-height: 640px; /* JS caps to visible viewport */

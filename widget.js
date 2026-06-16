@@ -1003,9 +1003,11 @@ function positionSearchOverlay() {
   const vh = (hasParentMetrics && parentViewportH)
     ? parentViewportH
     : (window.parent === window ? window.innerHeight : 640);
+  // Anchor the modal's TOP edge near the top of the visible viewport.
+  const topOffset = Math.max(24, Math.round(vh * 0.07));
   if (modal) {
-    modal.style.maxHeight = Math.max(280, vh - 48) + "px";
-    modal.style.top = ((hasParentMetrics ? parentScrollTop : window.scrollY) + vh / 2) + "px";
+    modal.style.maxHeight = Math.max(240, vh - topOffset - 24) + "px";
+    modal.style.top = ((hasParentMetrics ? parentScrollTop : window.scrollY) + topOffset) + "px";
   }
 }
 

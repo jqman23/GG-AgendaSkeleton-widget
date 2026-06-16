@@ -1250,6 +1250,18 @@ const PDF_TYPE_LABEL = {
   intl:     "International Exchange"
 };
 
+// Small square icon per theme, shown inline to the right of the theme label.
+const PDF_THEME_CDN = "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/";
+const PDF_THEME_ICON = {
+  "Reimagining Child, Youth, and Family Well-Being":    PDF_THEME_CDN + "26ec9f049f4b409caee019522f91cd11.png",
+  "Truth, Justice, and Healing Systems":                PDF_THEME_CDN + "13f67dfc298e405d9130b2afc9e19528.png",
+  "Communities as Catalysts for Well-Being":            PDF_THEME_CDN + "abd0baa32e3e4a778a05dfcb896e591b.png",
+  "Rights, Advocacy, and Family Power":                 PDF_THEME_CDN + "af3c92ab14fa476aa7e3e6560adad717.png",
+  "Systems Innovation and the Architecture of Change":  PDF_THEME_CDN + "4e78e990be124081814b75abe40816ae.png",
+  "Inner Restoration and Reflective Leadership":        PDF_THEME_CDN + "bc146420b48f4e1099723e10643fbee8.png",
+  "The Future Workforce: Thriving, Connected, Equipped": PDF_THEME_CDN + "227efe329cd048bd98252795c4471757.png"
+};
+
 // Pill palette per session type: [background, text, border]
 const PDF_TYPE_PILL = {
   workshop: ["#eaf4f7", "#187089", "#b9dce5"],
@@ -1276,12 +1288,27 @@ function pdfTypePill(type) {
   return `<span class="aType" style="background:${bg};color:${color};border-color:${border};">${iconHtml}<span>${pdfEsc(label)}</span></span>`;
 }
 
-function pdfSpeakersHTML(speakers) {
-  const lines = (speakers || []).map(sp => {
+function pdfSpeakersHTML(speakers, withPhotos) {
+  const list = (speakers || []).filter(sp => (sp.name || "").trim());
+  if (!list.length) return "";
+
+  // Skill institutes: circular headshot to the left of each speaker.
+  if (withPhotos) {
+    const rows = list.map(sp => {
+      const meta = [sp.title, sp.org].map(x => (x || "").trim()).filter(Boolean).join(", ");
+      const initials = pdfEsc((sp.name || "?").split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase());
+      const avatar = sp.photo
+        ? `<img class="aSpkPhoto" src="${sp.photo}" crossorigin="anonymous" alt="">`
+        : `<span class="aSpkInitials">${initials}</span>`;
+      return `<div class="aSpkRow">${avatar}<div class="aSpkText"><span class="aSpkName">${pdfEsc(sp.name)}</span>${meta ? `<span class="aSpkMeta">${pdfEsc(meta)}</span>` : ""}</div></div>`;
+    }).join("");
+    return `<div class="aSpk aSpk--photos">${rows}</div>`;
+  }
+
+  const lines = list.map(sp => {
     const parts = [sp.name, sp.title, sp.org].map(x => (x || "").trim()).filter(Boolean);
-    return parts.length ? `<div class="aSpkLine">${pdfEsc(parts.join(", "))}</div>` : "";
-  }).filter(Boolean);
-  if (!lines.length) return "";
+    return `<div class="aSpkLine">${pdfEsc(parts.join(", "))}</div>`;
+  });
   return `<div class="aSpk">${lines.join("")}</div>`;
 }
 
@@ -1317,14 +1344,17 @@ function buildAgendaPdfDoc(selectedZone) {
         const startUtc = easternToUtc(sd, st);
         const endUtc   = easternToUtc(sd, s.endTime || et);
         const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, day);
-        const themeHtml = s.theme ? `<div class="aTheme">${pdfEsc(s.theme)}</div>` : "";
+        const themeIcon = PDF_THEME_ICON[(s.theme || "").trim()];
+        const themeHtml = s.theme
+          ? `<div class="aTheme"><span>${pdfEsc(s.theme)}</span>${themeIcon ? `<img class="aThemeIcon" src="${themeIcon}" crossorigin="anonymous" alt="">` : ""}</div>`
+          : "";
         const descHtml  = s.description ? `<p class="aDesc">${pdfEsc(s.description)}</p>` : "";
         rows.push(`<article class="aRow">
           <div class="aTime">${pdfEsc(timeLabel)}${tzAbbr ? `<div class="aTz">${tzAbbr}</div>` : ""}</div>
           <div class="aMain">
             <div class="aHead"><h3>${pdfEsc(s.name)}</h3>${pdfTypePill(sType)}</div>
             ${themeHtml}
-            ${pdfSpeakersHTML(s.speakers)}
+            ${pdfSpeakersHTML(s.speakers, sType === "skill")}
             ${descHtml}
           </div>
         </article>`);
@@ -1359,10 +1389,18 @@ function buildAgendaPdfDoc(selectedZone) {
   .aType{flex:0 0 auto;border-radius:999px;padding:3px 9px 3px 4px;font-size:7.4px;line-height:1;font-weight:800;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;border:1px solid transparent;display:inline-flex;align-items:center;gap:5px;min-height:22px;}
   .aType-ic{width:16px;height:16px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 16px;background:rgba(255,255,255,.85);border:1px solid rgba(18,35,69,.08);overflow:hidden;}
   .aType-ic img{width:12px;height:12px;object-fit:contain;display:block;}
-  .aTheme{color:#7c4dbd;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px;}
+  .aTheme{color:#7c4dbd;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin:0 0 5px;display:inline-flex;align-items:center;gap:6px;}
+  .aThemeIcon{width:14px;height:14px;border-radius:3px;object-fit:cover;display:inline-block;flex:0 0 14px;}
   .aSpk{margin:0 0 6px;color:#187089;font-size:9.5px;line-height:1.4;font-weight:700;}
   .aSpkLine{margin:0 0 2px;}
   .aSpkLine:last-child{margin-bottom:0;}
+  .aSpk--photos{display:flex;flex-direction:column;gap:6px;}
+  .aSpkRow{display:flex;align-items:center;gap:8px;}
+  .aSpkPhoto{width:26px;height:26px;border-radius:50%;object-fit:cover;flex:0 0 26px;border:1.5px solid #e8eaed;}
+  .aSpkInitials{width:26px;height:26px;border-radius:50%;flex:0 0 26px;background:#e8eaed;color:#7a8699;font-size:9px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+  .aSpkText{display:flex;flex-direction:column;line-height:1.32;}
+  .aSpkName{color:#122345;font-weight:800;}
+  .aSpkMeta{color:#187089;font-weight:600;}
   .aDesc{margin:0;color:#334155;font-size:9.4px;line-height:1.5;font-weight:400;white-space:pre-line;}
   .aDesc-tbd{font-style:italic;color:#64748b;}
   .aFooter{margin-top:26px;padding-top:10px;border-top:1px solid #dbe3ee;display:flex;justify-content:space-between;gap:14px;color:#64748b;font-size:7.6px;font-weight:700;}

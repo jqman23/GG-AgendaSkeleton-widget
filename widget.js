@@ -1055,6 +1055,7 @@ function resetTimeFilterForSearch() {
   }
 }
 function openSearch() {
+  resetTimeFilterForSearch();
   const overlay = document.getElementById("searchOverlay");
   const input   = document.getElementById("searchInput");
   if (!overlay || !input) return;

@@ -1482,7 +1482,7 @@ function downloadAgendaPDF() {
 
   const restore = () => {
     if (btn)   btn.classList.remove("is-loading");
-    if (label) label.textContent = prevLabel || "Download agenda (PDF)";
+    if (label) label.textContent = prevLabel || "Download full agenda (PDF)";
     pdfInFlight = false;
   };
 

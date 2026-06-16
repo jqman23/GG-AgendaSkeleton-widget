@@ -1278,3 +1278,17 @@ body {
   margin-top: 3px;
   line-height: 1.35;
 }
+/* Actual session time inside each card — title > time > tags */
+.sessionActualTime {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #187089;
+  line-height: 1.35;
+  margin-top: -2px;
+  margin-bottom: 2px;
+}
+.sessionActualTime span {
+  color: rgba(18,35,69,0.48);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+}

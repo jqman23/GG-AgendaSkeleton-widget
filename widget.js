@@ -593,6 +593,33 @@ function buildCalUrls(s, blockKey) {
   return { gcal, outlook };
 }
 
+function buildSessionActualTimeHtml(s, blockKey) {
+  const info = blockTimeMap[blockKey];
+  if (!info) return "";
+
+  const [blockStartDate, blockStartTime, blockEndDate, blockEndTime] = info;
+  const startDate = s.startDate || blockStartDate;
+  const startTime = s.startTime || blockStartTime;
+  const endDate   = s.endDate || blockEndDate || startDate;
+  const endTime   = s.endTime || blockEndTime;
+
+  if (!startDate || !startTime || !endDate || !endTime) return "";
+
+  const dayByDate = {
+    "2026-10-06": "day1",
+    "2026-10-07": "day2",
+    "2026-10-08": "day3"
+  };
+
+  const startUtc = easternToUtc(startDate, startTime);
+  const endUtc   = easternToUtc(endDate, endTime);
+  const day      = dayByDate[startDate] || dayByDate[blockStartDate] || "day1";
+  const label    = buildTimeLabel(startUtc, endUtc, timezoneSelect.value, day);
+  const tzAbbr   = getTzAbbreviation(timezoneSelect.value);
+
+  return `<div class="sessionActualTime">${esc(label)}${tzAbbr ? ` <span>${esc(tzAbbr)}</span>` : ""}</div>`;
+}
+
 function downloadICS(code) {
   const s = sessionMap[code];
   if (!s) return;
@@ -1281,6 +1308,7 @@ function buildSessionsHTML(blockKey) {
             ${s.theme ? `<span class="sessionTheme">${esc(s.theme)}</span>` : ""}
           </div>
           <div class="sessionCardTitle">${esc(s.name)}</div>
+                    ${buildSessionActualTimeHtml(s, blockKey)}
           ${tagsHtml}
           ${s.description ? `<p class="sessionDesc" id="${descId}">${esc(s.description)}</p>
           <div class="sessionCardActions">

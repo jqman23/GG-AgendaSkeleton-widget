@@ -316,6 +316,35 @@ body {
   box-shadow: 0 10px 24px rgba(0,0,0,0.07);
 }
 
+/* TBD ("details coming soon") panel */
+.tbdPanel {
+  background: #ffffff;
+  border: 1.5px solid rgba(18,35,69,0.07);
+  border-left: 4px solid #187089;
+  border-radius: 12px;
+  padding: 16px 20px;
+}
+.tbdPanelTitle {
+  font-weight: 700;
+  font-size: 15px;
+  color: #122345;
+  margin-bottom: 6px;
+}
+.tbdPanelText {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #374151;
+}
+.tbdPanelText a {
+  color: #187089;
+  font-weight: 600;
+  text-decoration: underline;
+}
+.tbdPanelText a:hover {
+  color: #122345;
+}
+
 /* Card grid */
 .sessionGrid {
   display: grid;

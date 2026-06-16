@@ -10,7 +10,7 @@ const icons = {
   creative: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/3a8caa515267422f9438e166ed096908.png",
   keynote: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/70e651e949504943907244bd4cfef35e.png",
   skill:   "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/8230f92e454c40c49550e623915ee73e.png",
-  intl:    "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/bdcbe9d6fe544ef4a202b854ca33e3f6.png"
+  intl:    "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/39810669375140269fd67c96d9a86f41.png"
 };
 let showFiltered = false;
 
@@ -47,10 +47,11 @@ const data = {
     ["2026-10-08", "09:00", "2026-10-08", "10:30", ["strategy"]],
     ["2026-10-08", "10:45", "2026-10-08", "11:45", ["workshop"]],
     ["2026-10-08", "12:00", "2026-10-08", "13:00", ["workshop"]],
-    ["2026-10-08", "13:15", "2026-10-08", "14:15", ["workshop"]],
+    ["2026-10-08", "13:15", "2026-10-08", "14:45", ["workshop", "strategy"]],
+    ["2026-10-08", "15:00", "2026-10-08", "15:45", ["keynote"]],
     ["2026-10-08", "16:00", "2026-10-08", "17:00", ["workshop"]],
     ["2026-10-08", "17:15", "2026-10-08", "18:30", ["workshop"]],
-    ["2026-10-08", "18:45", "2026-10-08", "19:45", ["creative"]]
+    ["2026-10-08", "18:45", "2026-10-08", "20:15", ["creative", "intl"]]
   ]
 };
 
@@ -1001,6 +1002,25 @@ document.addEventListener("keydown", (ev) => {
   if (ev.key === "Escape") closeSessionSpeakerTooltips(null, true);
 });
 
+// ─── TBD BLOCKS ───────────────────────────────────────────────────────────────
+// Blocks whose programming has been scheduled but not yet announced. They are
+// still expandable, but the panel shows a "details coming soon" message instead
+// of session cards.
+const TBD_BLOCKS = { "2026-10-08|15:00": true };
+
+function isTbdBlock(blockKey) {
+  return !!TBD_BLOCKS[blockKey];
+}
+
+function buildTbdPanelHTML() {
+  return `<div class="sessionPanel" hidden>
+    <div class="tbdPanel">
+      <div class="tbdPanelTitle">Speaker &amp; session details coming soon</div>
+      <p class="tbdPanelText">This keynote is still being finalized — check back as we get closer to the event. To be the first to know when we announce, sign up for the <a href="https://lp.constantcontactpages.com/sl/JptLr3F/globalgathering" target="_blank" rel="noopener">Global Gathering newsletter</a>.</p>
+    </div>
+  </div>`;
+}
+
 function buildSessionsHTML(blockKey) {
   const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
   if (!sessions.length) return "";
@@ -1133,6 +1153,8 @@ function render(day) {
     const primary   = types[0];
     const blockKey  = `${startDate}|${startTime}`;
     const hasSessions = typeof sessionsByBlock !== "undefined" && (sessionsByBlock[blockKey] || []).length > 0;
+    const tbd         = isTbdBlock(blockKey);
+    const expandable  = hasSessions || tbd;
 
     const typeContent = types.map((t, i) => `
       <div class="sessionTypeRow${i > 0 ? " sessionTypeRow--extra" : ""}">
@@ -1148,7 +1170,7 @@ function render(day) {
     blockWrap.className = "blockWrap";
     blockWrap.dataset.block = blockKey;
     blockWrap.innerHTML = `
-      <div class="timeRow${hasSessions ? " timeRow--clickable" : ""}">
+      <div class="timeRow${expandable ? " timeRow--clickable" : ""}">
         <div class="timeLabel">${timeLabel}</div>
         <div class="sessionBlock${comfortable ? " comfortable" : ""}${evening ? " evening" : ""}">
           <div class="sessionTypes">${typeContent}</div>
@@ -1158,12 +1180,12 @@ function render(day) {
             ${neutral && primary !== "skill" ? `<div class="neutralLabel">The majority of sessions are recorded</div>` : ""}
           </div>
         </div>
-        ${hasSessions ? `<span class="chevron" aria-hidden="true"></span>` : ""}
+        ${expandable ? `<span class="chevron" aria-hidden="true"></span>` : ""}
       </div>
-      ${buildSessionsHTML(blockKey)}
+      ${hasSessions ? buildSessionsHTML(blockKey) : tbd ? buildTbdPanelHTML() : ""}
     `;
 
-    if (hasSessions) {
+    if (expandable) {
       blockWrap.querySelector(".timeRow").addEventListener("click", () => togglePanel(blockWrap));
     }
 

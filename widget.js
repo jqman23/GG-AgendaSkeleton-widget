@@ -1124,6 +1124,176 @@ function togglePanel(blockWrap, forceOpen) {
   queueWidgetHeightPost();
 }
 
+// ─── AGENDA PDF EXPORT ───────────────────────────────────────────────────────
+// Builds a polished, multi-page PDF of the FULL agenda (all three days, every
+// block) in the currently selected timezone. Renders a standalone HTML document
+// inside a hidden same-origin iframe, then runs html2pdf on it — same approach
+// as the per-session export in the skill-institute widget (no cross-origin taint,
+// no off-screen layout hacks).
+
+const PDF_DAY_META = {
+  day1: { label: "Skill Building Institutes", date: "2026-10-06" },
+  day2: { label: "The Global Gathering",      date: "2026-10-07" },
+  day3: { label: "The Global Gathering",      date: "2026-10-08" }
+};
+
+// Distinct accent color per session type — used for the small type pill so the
+// agenda is easy to scan at a glance.
+const PDF_TYPE_COLOR = {
+  skill:    "#2e7d32",
+  workshop: "#187089",
+  strategy: "#7c4dbd",
+  creative: "#c2562f",
+  keynote:  "#b8860b",
+  intl:     "#1565c0"
+};
+
+function pdfEsc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function buildAgendaPdfDoc(selectedZone) {
+  const tzAbbr = getTzAbbreviation(selectedZone);
+  const tzNote = tzAbbr ? `All times shown in ${tzAbbr}` : "Times shown in your selected time zone";
+
+  const daysHtml = Object.entries(PDF_DAY_META).map(([day, meta]) => {
+    // Long, friendly date label (noon avoids any timezone date rollover)
+    const dateObj = new Date(meta.date + "T12:00:00");
+    const dateLabel = dateObj.toLocaleDateString("en-US", {
+      weekday: "long", month: "long", day: "numeric", year: "numeric"
+    });
+
+    const blocksHtml = (data[day] || []).map(([sd, st, ed, et, types]) => {
+      const blockKey = `${sd}|${st}`;
+      const startUtc = easternToUtc(sd, st);
+      const endUtc   = easternToUtc(ed, et);
+      const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, day);
+
+      const typePills = (types || []).map(t =>
+        `<span style="display:inline-block;font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:0.04em;color:#fff;background:${PDF_TYPE_COLOR[t] || "#555"};border-radius:4px;padding:2px 6px;margin:0 4px 4px 0;">${pdfEsc(getSessionLabel(t))}</span>`
+      ).join("");
+
+      const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
+
+      let bodyHtml;
+      if (isTbdBlock(blockKey)) {
+        bodyHtml = `<div style="font-size:9.5px;color:#777;font-style:italic;">Speaker &amp; session details coming soon — check back closer to the event.</div>`;
+      } else if (sessions.length) {
+        bodyHtml = sessions.map(s => {
+          const speakers = (s.speakers || []).map(sp => pdfEsc(sp.name)).join(", ");
+          const themeHtml = s.theme
+            ? `<span style="font-size:8px;font-weight:600;color:#187089;background:#f0f7f9;border-radius:4px;padding:1px 6px;margin-left:6px;">${pdfEsc(s.theme)}</span>`
+            : "";
+          return `<div style="padding:5px 0;border-top:1px solid #f0f1f4;">
+            <div style="font-size:10px;font-weight:700;color:#122345;line-height:1.35;">${pdfEsc(s.name)}${themeHtml}</div>
+            ${speakers ? `<div style="font-size:8.5px;color:#666;margin-top:2px;">${speakers}</div>` : ""}
+          </div>`;
+        }).join("");
+      } else {
+        bodyHtml = `<div style="font-size:9px;color:#999;">—</div>`;
+      }
+
+      return `<div style="display:flex;gap:16px;padding:12px 0;border-bottom:1px solid #e8eaed;page-break-inside:avoid;">
+        <div style="width:120px;flex-shrink:0;">
+          <div style="font-size:11px;font-weight:700;color:#122345;line-height:1.3;">${pdfEsc(timeLabel)}</div>
+          ${tzAbbr ? `<div style="font-size:8px;color:#999;margin-top:2px;">${tzAbbr}</div>` : ""}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="margin-bottom:5px;">${typePills}</div>
+          ${bodyHtml}
+        </div>
+      </div>`;
+    }).join("");
+
+    return `<div style="page-break-inside:auto;margin-bottom:8px;">
+      <div style="display:flex;align-items:baseline;gap:10px;margin:22px 0 4px;padding-bottom:7px;border-bottom:2px solid #122345;">
+        <div style="font-size:16px;font-weight:800;color:#122345;">${pdfEsc(dateLabel)}</div>
+        <div style="font-size:10px;font-weight:600;color:#187089;text-transform:uppercase;letter-spacing:0.05em;">${pdfEsc(meta.label)}</div>
+      </div>
+      ${blocksHtml}
+    </div>`;
+  }).join("");
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>*{box-sizing:border-box;margin:0;padding:0;}body{font-family:'Montserrat',Arial,sans-serif;background:#fff;width:816px;color:#122345;}</style>
+</head><body>
+  <div style="background:linear-gradient(135deg,#122345 0%,#1d3a63 100%);color:#fff;padding:34px 44px 30px;">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.16em;color:#9db8d6;margin-bottom:10px;">2026 Conference</div>
+    <div style="font-size:34px;font-weight:800;line-height:1.05;margin-bottom:6px;">The Global Gathering</div>
+    <div style="font-size:14px;font-weight:600;color:#cdd9ea;margin-bottom:16px;">Full Event Agenda</div>
+    <div style="font-size:12px;font-weight:600;color:#fff;">October 6–8, 2026</div>
+    <div style="font-size:10px;color:#9db8d6;margin-top:3px;">${pdfEsc(tzNote)}</div>
+  </div>
+  <div style="padding:8px 44px 40px;">
+    ${daysHtml}
+    <div style="margin-top:26px;padding-top:12px;border-top:1px solid #e8eaed;font-size:8.5px;color:#aaa;text-align:center;">
+      Generated ${new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})} · Agenda subject to change · ${pdfEsc(tzNote)}
+    </div>
+  </div>
+</body></html>`;
+}
+
+let pdfInFlight = false;
+
+function downloadAgendaPDF() {
+  if (pdfInFlight) return;
+  pdfInFlight = true;
+
+  const btn   = document.getElementById("downloadPdfBtn");
+  const label = btn ? btn.querySelector(".pdfBtnLabel") : null;
+  const prevLabel = label ? label.textContent : "";
+  if (btn)   btn.classList.add("is-loading");
+  if (label) label.textContent = "Preparing PDF…";
+
+  const selectedZone = timezoneSelect.value;
+  const tzAbbr = getTzAbbreviation(selectedZone) || "agenda";
+  const filename = `global-gathering-agenda-${tzAbbr}.pdf`.toLowerCase();
+
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = "position:fixed;top:0;left:0;width:816px;height:1100px;border:none;opacity:0.01;pointer-events:none;z-index:-1;";
+  document.body.appendChild(iframe);
+
+  const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+  iDoc.open();
+  iDoc.write(buildAgendaPdfDoc(selectedZone));
+  iDoc.close();
+
+  const restore = () => {
+    if (btn)   btn.classList.remove("is-loading");
+    if (label) label.textContent = prevLabel || "Download agenda (PDF)";
+    setTimeout(() => { try { document.body.removeChild(iframe); } catch (e) {} }, 1500);
+    pdfInFlight = false;
+  };
+
+  // Give the web font + any images a moment, then inject html2pdf into the iframe.
+  const imgEls = Array.from(iDoc.querySelectorAll("img"));
+  const imgReady = imgEls.map(img => img.complete
+    ? Promise.resolve()
+    : new Promise(r => { img.onload = r; img.onerror = r; }));
+
+  // Small delay so the Montserrat webfont applies before capture
+  Promise.all(imgReady)
+    .then(() => new Promise(r => setTimeout(r, 350)))
+    .then(() => new Promise((res, rej) => {
+      const sc = iDoc.createElement("script");
+      sc.src = "https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js";
+      sc.onload = res; sc.onerror = rej;
+      iDoc.head.appendChild(sc);
+    }))
+    .then(() => iframe.contentWindow.html2pdf().set({
+      margin: 0,
+      filename,
+      image: { type: "jpeg", quality: 0.96 },
+      html2canvas: { scale: 2, useCORS: true, logging: false, windowWidth: 816 },
+      jsPDF: { unit: "mm", format: "letter", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] }
+    }).from(iDoc.body).save())
+    .catch(err => { console.error("Agenda PDF failed:", err); alert("Sorry — the PDF could not be generated. Please try again."); })
+    .finally(restore);
+}
+
 // ─── RENDER ───────────────────────────────────────────────────────────────────
 function render(day) {
   const grid         = document.getElementById("agendaGrid");
@@ -1238,6 +1408,8 @@ document.getElementById("toggleAllBtn").addEventListener("click", () => {
 });
 
 document.getElementById("speakerViewBtn").addEventListener("click", toggleSpeakerView);
+
+document.getElementById("downloadPdfBtn").addEventListener("click", downloadAgendaPDF);
 
 // ─── IFRAME HEIGHT LISTENERS ─────────────────────────────────────────────────
 window.addEventListener("load", queueWidgetHeightPost);

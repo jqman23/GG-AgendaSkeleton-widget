@@ -249,6 +249,17 @@ body {
 }
 .expandBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.10); }
 
+.pdfBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.pdfBtn svg { color: #187089; }
+.pdfBtn.is-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
 /* ── Skill note banner ────────────────────────────────────── */
 .skillNote {
   display: flex;

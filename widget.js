@@ -1037,6 +1037,23 @@ function positionSearchOverlay() {
   }
 }
 
+
+function resetTimeFilterForSearch() {
+  if (!showFiltered) return;
+
+  showFiltered = false;
+
+  const filterBtn = document.getElementById("timeFilterBtn");
+  if (filterBtn) {
+    filterBtn.classList.remove("active");
+    filterBtn.textContent = "Show daytime & evening hours";
+  }
+
+  if (!inSpeakerView) {
+    const activeDay = document.querySelector(".dayBtn.active")?.dataset.day;
+    if (activeDay) render(activeDay);
+  }
+}
 function openSearch() {
   const overlay = document.getElementById("searchOverlay");
   const input   = document.getElementById("searchInput");

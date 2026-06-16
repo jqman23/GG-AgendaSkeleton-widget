@@ -873,7 +873,7 @@ function navigateToSpeakerTile(name) {
 
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
 // A global typeahead popup over all sessions and speakers. Selecting a result
-// jumps to that tile and highlights it.
+// jumps to that session; selecting a speaker shows more info inside search.
 const SEARCH_DAY_BY_DATE  = { "2026-10-06": "day1", "2026-10-07": "day2", "2026-10-08": "day3" };
 const SEARCH_DAY_SHORT    = { day1: "Oct 6", day2: "Oct 7", day3: "Oct 8" };
 let _searchIndex = null;
@@ -896,8 +896,7 @@ function getSearchIndex() {
   for (const sp of buildSpeakerIndex()) {
     const hay = [sp.name, sp.title, sp.org, sp.bio].filter(Boolean).join("  ").toLowerCase();
     items.push({
-      kind: "speaker", name: sp.name, title: sp.title, org: sp.org,
-      photo: sp.photo, sessionCount: (sp.sessions || []).length, hay
+      kind: "speaker", name: sp.name, title: sp.title, org: sp.org, bio: sp.bio, photo: sp.photo, sessions: sp.sessions || [], sessionCount: (sp.sessions || []).length, hay
     });
   }
   _searchIndex = items;
@@ -1037,11 +1036,57 @@ function selectSearchSession(blockKey, code) {
   navigateToSession(blockKey, code);
 }
 
-function selectSearchSpeaker(name) {
-  closeSearch();
-  navigateToSpeaker(name);
+function renderSearchSpeakerDetails(name) {
+  const results = document.getElementById("searchResults");
+  if (!results) return;
+
+  const sp = getSpeakerDetailsByName(name);
+  if (!sp) {
+    results.innerHTML = `<div class="searchEmpty">Speaker details could not be found.</div>`;
+    return;
+  }
+
+  const initials = esc(sp.name.split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase());
+  const avatar = sp.photo
+    ? `<img class="searchSpeakerPhoto" src="${esc(sp.photo)}" alt="${esc(sp.name)}">`
+    : `<div class="searchSpeakerInitials">${initials}</div>`;
+
+  const sessionRows = (sp.sessions || []).map(sess => {
+    const s = sessionMap[sess.code];
+    const meta = [
+      searchDateTimeLabel(sess.blockKey),
+      s ? getSessionLabel(s.type) : ""
+    ].filter(Boolean).join(" · ");
+
+    return `<div class="searchSpeakerSession">
+      <div class="searchSpeakerSessionName">${esc(sess.name)}</div>
+      ${meta ? `<div class="searchSpeakerSessionMeta">${esc(meta)}</div>` : ""}
+    </div>`;
+  }).join("");
+
+  results.innerHTML = `
+    <div class="searchSpeakerDetail">
+      <button type="button" class="searchBackBtn" onclick="renderSearchResults()">← Back to results</button>
+      <div class="searchSpeakerHeader">
+        ${avatar}
+        <div>
+          <div class="searchSpeakerName">${esc(sp.name)}</div>
+          ${sp.title ? `<div class="searchSpeakerTitle">${esc(sp.title)}</div>` : ""}
+          ${sp.org ? `<div class="searchSpeakerOrg">${esc(sp.org)}</div>` : ""}
+        </div>
+      </div>
+      ${sp.bio ? `<p class="searchSpeakerBio">${esc(sp.bio)}</p>` : `<p class="searchSpeakerBio searchSpeakerBioEmpty">More speaker information coming soon.</p>`}
+      ${sessionRows ? `<div class="searchSpeakerSessionsLabel">Sessions</div>${sessionRows}` : ""}
+    </div>
+  `;
+
+  positionSearchOverlay();
+  queueWidgetHeightPost();
 }
 
+function selectSearchSpeaker(name) {
+  renderSearchSpeakerDetails(name);
+}
 let activeSpeakerTooltipChip = null;
 
 function getSpeakerDetailsByName(name) {

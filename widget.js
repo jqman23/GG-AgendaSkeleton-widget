@@ -846,18 +846,11 @@ function setSpeakerSort(dir) {
   queueWidgetHeightPost();
 }
 
-// True when the widget is rendered at the mobile breakpoint (matches the CSS).
+// True when the widget is rendered at the mobile breakpoint.
 function isMobileView() {
   const ownNarrow = !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
   const parentNarrow = !!(hasParentMetrics && parentViewportW && parentViewportW <= 700);
-  const coarsePointer = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
-  const touchDevice = !!(navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
-
-  // In the Cvent iframe, width checks can be unreliable on phones. Treat coarse/touch
-  // devices as mobile up to tablet size so speaker-session taps expand inline.
-  const touchLikelyMobile = (coarsePointer || touchDevice) && window.innerWidth <= 1024;
-
-  return !!(ownNarrow || parentNarrow || touchLikelyMobile);
+  return !!(ownNarrow || parentNarrow);
 }
 
 let speakerModalSlug = null; // slug of the speaker currently shown in the modal
@@ -914,18 +907,22 @@ function openSpeakerModal(slug, ev) {
 }
 
 // Speaker-modal session click.
-// Always expand/collapse details inline inside the speaker popup.
-// Do NOT use navigateToSession here; iframe/mobile sizing can misreport breakpoints.
+// Desktop keeps original behavior: jump to the session in the agenda.
+// Mobile expands/collapses details inline inside the speaker popup.
 function onSpeakerSessionClick(blockKey, code, ev) {
   if (ev) { ev.preventDefault(); ev.stopPropagation(); }
 
-  const triggerEl = ev && ev.currentTarget
-    ? ev.currentTarget
-    : document.querySelector(`.spModalSession[data-code="${CSS.escape(String(code))}"]`);
+  if (isMobileView()) {
+    const triggerEl = ev && ev.currentTarget
+      ? ev.currentTarget
+      : document.querySelector(`.spModalSession[data-code="${CSS.escape(String(code))}"]`);
 
-  toggleSpeakerModalInlineSession(blockKey, code, triggerEl);
+    toggleSpeakerModalInlineSession(blockKey, code, triggerEl);
+    return;
+  }
+
+  navigateToSession(blockKey, code);
 }
-
 function getSpeakerModalSessionInlineHTML(blockKey, code) {
   const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
   const s = sessionMap[code] || sessions.find(x => String(x.code) === String(code));

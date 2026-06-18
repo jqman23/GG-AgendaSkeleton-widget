@@ -208,6 +208,7 @@ function getSessionSub(type) {
 // We use these to lay the modal overlay exactly over what the user can see.
 let parentScrollTop  = 0;
 let parentViewportH  = 0;
+let parentViewportW  = 0;
 let hasParentMetrics = false;
 let modalAnchorEl    = null; // element the open modal is anchored to (a speaker card)
 let pendingMetricsCallbacks = [];
@@ -846,7 +847,16 @@ function setSpeakerSort(dir) {
 
 // True when the widget is rendered at the mobile breakpoint (matches the CSS).
 function isMobileView() {
-  return !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
+  const ownNarrow = !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
+  const parentNarrow = !!(hasParentMetrics && parentViewportW && parentViewportW <= 700);
+  const coarsePointer = !!(window.matchMedia && window.matchMedia("(pointer: coarse)").matches);
+  const touchDevice = !!(navigator.maxTouchPoints && navigator.maxTouchPoints > 0);
+
+  // In the Cvent iframe, width checks can be unreliable on phones. Treat coarse/touch
+  // devices as mobile up to tablet size so speaker-session taps expand inline.
+  const touchLikelyMobile = (coarsePointer || touchDevice) && window.innerWidth <= 1024;
+
+  return !!(ownNarrow || parentNarrow || touchLikelyMobile);
 }
 
 let speakerModalSlug = null; // slug of the speaker currently shown in the modal
@@ -906,7 +916,7 @@ function openSpeakerModal(slug, ev) {
 // work well inside the embedded iframe (the parent controls scrolling), so show
 // a read-only session overview popup instead. Desktop keeps navigation.
 function onSpeakerSessionClick(blockKey, code, ev) {
-  if (ev) ev.stopPropagation();
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
 
   if (isMobileView()) {
     toggleSpeakerModalInlineSession(blockKey, code, ev ? ev.currentTarget : null);
@@ -957,9 +967,17 @@ function toggleSpeakerModalInlineSession(blockKey, code, triggerEl) {
   triggerEl.insertAdjacentHTML("afterend", getSpeakerModalSessionInlineHTML(blockKey, code));
   triggerEl.setAttribute("aria-expanded", "true");
 
-  positionModalOverlay(null);
-  requestParentMetrics();
-  queueWidgetHeightPost();
+  const inlinePanel = triggerEl.nextElementSibling;
+
+  window.requestAnimationFrame(() => {
+    if (inlinePanel && inlinePanel.scrollIntoView) {
+      inlinePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    positionModalOverlay(null);
+    requestParentMetrics();
+    queueWidgetHeightPost();
+  });
 }
 
 function showSessionOverviewInModal(blockKey, code) {
@@ -1337,7 +1355,7 @@ function toggleSearchInlineSession(blockKey, code, triggerEl) {
 }
 
 function toggleSearchSpeakerSession(ev, btn, blockKey, code) {
-  if (ev) ev.stopPropagation();
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
 
   if (isMobileView()) {
     toggleSearchInlineSession(blockKey, code, btn);
@@ -1460,7 +1478,7 @@ function closeSessionSpeakerTooltips(exceptChip, includePinned = false) {
 }
 
 function showSpeakerTooltip(ev, chip) {
-  if (ev) ev.stopPropagation();
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
   if (!chip) return;
 
   closeSessionSpeakerTooltips(chip, false);
@@ -1491,7 +1509,7 @@ function resetSpeakerTooltipsIn(root) {
 }
 
 function hideSpeakerTooltip(ev, chip) {
-  if (ev) ev.stopPropagation();
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
   if (isSpeakerTooltipPinned(chip)) return;
   resetSessionSpeakerTooltip(chip);
   if (activeSpeakerTooltipChip === chip) activeSpeakerTooltipChip = null;
@@ -1499,7 +1517,7 @@ function hideSpeakerTooltip(ev, chip) {
 }
 
 function toggleSpeakerTooltipPin(ev, chip) {
-  if (ev) ev.stopPropagation();
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
   if (!chip) return;
 
   if (isSpeakerTooltipPinned(chip)) {
@@ -1526,7 +1544,7 @@ function toggleSpeakerTooltipFromKeyboard(ev, chip) {
 }
 
 function expandSpeakerTooltip(ev, btn) {
-  if (ev) ev.stopPropagation();
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
   const tooltip = btn?.closest(".speakerTooltip");
   const chip = btn?.closest(".speakerChip");
   if (!tooltip || !btn) return;

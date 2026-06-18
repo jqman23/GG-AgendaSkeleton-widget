@@ -1,3 +1,30 @@
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#agendaWidget,
+button,
+input,
+select,
+textarea {
+  color-scheme: light;
+}
+
+button,
+input,
+select,
+textarea {
+  color: #122345;
+}
+
+select,
+input,
+textarea {
+  background-color: #ffffff;
+}
+
 * {
   font-family: "Montserrat", sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -12,7 +39,8 @@ body {
 }
 
 body {
-  background: transparent;
+  background: #ffffff;
+  color: #122345;
 }
 
 #agendaWidget {

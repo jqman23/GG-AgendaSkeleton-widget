@@ -1314,6 +1314,14 @@ body {
   margin-top: 3px;
   line-height: 1.35;
 }
+.spModalSession[aria-expanded="true"] {
+  background: rgba(190,190,123,0.22);
+}
+
+.speakerModalSessionInline {
+  margin: -2px 0 10px;
+}
+
 .searchResult[aria-expanded="true"],
 .searchSpeakerSession[aria-expanded="true"] {
   background: rgba(190,190,123,0.22);

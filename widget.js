@@ -862,7 +862,7 @@ function renderSpeakerModalBody(slug) {
     : `<div class="spModalInitials">${initials}</div>`;
 
   const sessionButtons = sp.sessions.map(sess =>
-    `<button class="spModalSession" onclick="onSpeakerSessionClick('${esc(sess.blockKey)}','${esc(sess.code)}', event)">${esc(sess.name)}</button>`
+    `<button class="spModalSession" aria-expanded="false" onclick="onSpeakerSessionClick('${esc(sess.blockKey)}','${esc(sess.code)}', event)">${esc(sess.name)}</button>`
   ).join("");
 
   document.getElementById("spModalBody").innerHTML = `
@@ -907,8 +907,59 @@ function openSpeakerModal(slug, ev) {
 // a read-only session overview popup instead. Desktop keeps navigation.
 function onSpeakerSessionClick(blockKey, code, ev) {
   if (ev) ev.stopPropagation();
-  if (isMobileView()) showSessionOverviewInModal(blockKey, code);
-  else navigateToSession(blockKey, code);
+
+  if (isMobileView()) {
+    toggleSpeakerModalInlineSession(blockKey, code, ev ? ev.currentTarget : null);
+    return;
+  }
+
+  navigateToSession(blockKey, code);
+}
+
+function getSpeakerModalSessionInlineHTML(blockKey, code) {
+  const s = sessionMap[code];
+  if (!s) {
+    return `<div class="searchSessionInline"><div class="searchEmpty">Session details could not be found.</div></div>`;
+  }
+
+  const prefix = "spmodal-" + String(code).replace(/[^a-zA-Z0-9_-]/g, "-") + "-";
+
+  return `<div class="searchSessionInline speakerModalSessionInline" data-code="${esc(code)}" data-block="${esc(blockKey)}">
+    <div class="sessionOverview">${buildSessionCardHTML(s, blockKey, prefix)}</div>
+  </div>`;
+}
+
+function closeSpeakerModalInlineSessions() {
+  const modalBody = document.getElementById("spModalBody");
+  if (!modalBody) return;
+
+  modalBody.querySelectorAll(".searchSessionInline").forEach(el => {
+    const prevBtn = el.previousElementSibling;
+    if (prevBtn) prevBtn.setAttribute("aria-expanded", "false");
+    el.remove();
+  });
+}
+
+function toggleSpeakerModalInlineSession(blockKey, code, triggerEl) {
+  if (!triggerEl) return;
+
+  const existing = triggerEl.nextElementSibling;
+  if (existing && existing.classList.contains("searchSessionInline") && existing.dataset.code === String(code)) {
+    existing.remove();
+    triggerEl.setAttribute("aria-expanded", "false");
+    positionModalOverlay(null);
+    requestParentMetrics();
+    queueWidgetHeightPost();
+    return;
+  }
+
+  closeSpeakerModalInlineSessions();
+  triggerEl.insertAdjacentHTML("afterend", getSpeakerModalSessionInlineHTML(blockKey, code));
+  triggerEl.setAttribute("aria-expanded", "true");
+
+  positionModalOverlay(null);
+  requestParentMetrics();
+  queueWidgetHeightPost();
 }
 
 function showSessionOverviewInModal(blockKey, code) {

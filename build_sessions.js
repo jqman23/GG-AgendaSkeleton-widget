@@ -24,10 +24,78 @@ function parseCSV(text) {
   return rows;
 }
 
-const sessionsRaw = fs.readFileSync('C:/Users/kuminj/Downloads/6939031d7ebc4950bbe1bf8679588f66.csv', 'utf8');
-const speakersRaw = fs.readFileSync('C:/Users/kuminj/OneDrive - The University of Colorado Denver/Documents - CTA conference/2026/Call for Presentations & Scheduling Tool/Last saved/2026-Speaker-Report.csv', 'utf8');
+// ── File paths: CLI args first, else defaults ────────────────────────────────
+//   Usage: node build_sessions.js <sessions.csv> <speakers.csv>
+const SESSIONS_CSV = process.argv[2] || 'C:/Users/kuminj/Downloads/6939031d7ebc4950bbe1bf8679588f66.csv';
+const SPEAKERS_CSV = process.argv[3] || 'C:/Users/kuminj/OneDrive - The University of Colorado Denver/Documents - CTA conference/2026/Call for Presentations & Scheduling Tool/Last saved/2026-Speaker-Report.csv';
+
+const sessionsRaw = fs.readFileSync(SESSIONS_CSV, 'utf8');
+const speakersRaw = fs.readFileSync(SPEAKERS_CSV, 'utf8');
 const sessionRows = parseCSV(sessionsRaw);
 const speakerRows = parseCSV(speakersRaw);
+
+// ── Header lookup: map columns by NAME, not position ─────────────────────────
+// Order-independent. Strips BOM, trims, case-insensitive. Each field is matched
+// by trying candidate header names in order, or a regex fallback.
+function buildHeaderIndex(headerRow) {
+  const map = {};
+  headerRow.forEach((h, i) => {
+    const key = (h || '').replace(/^﻿/, '').trim().toLowerCase();
+    if (key && !(key in map)) map[key] = i; // first occurrence wins (e.g. two "Description" cols)
+  });
+  return map;
+}
+// Resolve a column index from candidate names (exact, case-insensitive) or a regex.
+function col(headerMap, candidates, regex) {
+  for (const c of candidates) {
+    const k = c.trim().toLowerCase();
+    if (k in headerMap) return headerMap[k];
+  }
+  if (regex) {
+    for (const k of Object.keys(headerMap)) {
+      if (regex.test(k)) return headerMap[k];
+    }
+  }
+  return -1;
+}
+function cell(row, idx) {
+  return idx >= 0 && row[idx] != null ? String(row[idx]) : '';
+}
+
+const sH = buildHeaderIndex(sessionRows[0] || []);
+const SES = {
+  name:  col(sH, ['Session Name']),
+  code:  col(sH, ['Session Code']),
+  theme: col(sH, ['Category']),
+  start: col(sH, ['Session Start Date/Time', 'Start Date/Time']),
+  end:   col(sH, ['End Date/Time', 'Session End Date/Time']),
+  desc:  col(sH, ['Description']),                 // first "Description" column
+  type:  col(sH, ['Presentation Type']),
+  tags:  col(sH, [], /\btags\b/),                  // e.g. "2025 CTA tags", "2026 CTA tags"
+};
+const pH = buildHeaderIndex(speakerRows[0] || []);
+const SPK = {
+  name:  col(pH, ['Full Name']),
+  org:   col(pH, ['Company Name', 'Organization']),
+  bio:   col(pH, ['Biography', 'Bio']),
+  title: col(pH, ['Title']),
+  code:  col(pH, ['Session Code']),
+};
+
+// Fail loudly if a required column is missing (header renamed/dropped).
+(function checkHeaders() {
+  const missing = [];
+  if (SES.name  < 0) missing.push('sessions: Session Name');
+  if (SES.code  < 0) missing.push('sessions: Session Code');
+  if (SES.start < 0) missing.push('sessions: Session Start Date/Time');
+  if (SES.type  < 0) missing.push('sessions: Presentation Type');
+  if (SPK.name  < 0) missing.push('speakers: Full Name');
+  if (SPK.code  < 0) missing.push('speakers: Session Code');
+  if (missing.length) {
+    console.error('ERROR: required column(s) not found by header name:\n  - ' + missing.join('\n  - '));
+    process.exit(1);
+  }
+})();
 
 const typeMap = {
   'Workshops': 'workshop',
@@ -62,7 +130,7 @@ const SKILL_SPEAKER_OVERRIDE = {
   },
   'Mark Durgin': {
     photo: CDN + '1911c1220e974a53a533087beb213e95.png',
-    bio: 'Mark B. Durgin is an accomplished leader with over two decades of experience transforming organizations through strategic leadership, partnering with human service managers nationwide to build trusting, collaborative teams and achieve meaningful impact without burnout. His expertise is rooted in human services, including leading a $23M grant initiative to transform behavioral health systems, which directly informs his results-driven coaching approach. A passionate advocate for adaptive leadership, he has guided over 2,500 professionals in cross-sector communication and systemic problem-solving, grounded in person-centered service delivery that helps clients create their desired future. Mark holds a BS in Criminal Justice, is an Associate Certified Coach (ACC) through the International Coaching Federation, and is a sought-after speaker at national conferences on leadership, system change, and behavioral health.'
+    bio: 'Mark B. Durgin is an accomplished leader with over two decades of experience transforming organizations through strategic leadership, partnering with human service managers nationwide to build trusting, collaborative teams and achieve meaningful impact without burnout. His expertise is rooted in human services, including leading a $23M grant initiative to transform behavioral health systems, which directly informs his results-driven coaching approach. A passionate advocate for adaptive leadership, he has guided over 2,500 professionals in cross-sector communication and systemic problem-solving, grounded in person-centered service delivery that helps clients create their desired future. Mark holds a BS in Criminal Justice, is an Associate Certified Coach (ACC) through the International Coaching Federation, and is a sought-after speaker at national conferences on leadership, system change, and behavioral health. When not coaching, he enjoys time with his family in New Freedom, PA.'
   },
   'Ellen Kagen': {
     photo: CDN + 'a9768e31b09a4054839a72b5dbce699d.png',
@@ -78,19 +146,19 @@ const SKILL_SPEAKER_OVERRIDE = {
   },
   'Michelle Mares': {
     photo: CDN + 'a3e21ea156c249bbbb07aab7866420c5.jpg',
-    bio: 'Michelle C. Mares, BS, MS-Organizational Leadership, PCC, CPCC, is a faculty member at the University of Colorado Anschutz Medical Campus within the Kempe Center and an international faculty member and systems coach for CRR Global, Inc. In her global faculty role, she is experienced in global relations with the intricacies of relationship systems, communication, and emergence. At the Kempe Center, Michelle leads the Foster, Kin, and Adoptive Parent Training Department for Colorado\'s Child Welfare Training System. With over 28 years of experience, Michelle\'s work sits at the intersection of neurobiology and organizational health; she is a trained Trust-Based Relational Intervention (TBRI) Practitioner, certified in Polyvagal Theory, and trained in the Co-Active Coaching model. A recipient of the Dalice Miller Hertzberg Award, Michelle is a recognized leader in the child welfare sector, dedicated to fostering equity, resilience, and excellence through coaching and systemic innovation.'
+    bio: 'Michelle C. Mares, BS, MS-Organizational Leadership, PCC, CPCC, is a faculty member at the University of Colorado Anschutz Medical Campus within the Kempe Center and an international faculty member and systems coach for CRR Global, Inc. In her global faculty role, she is experienced in global relations with the intricacies of relationship systems, communication, and emergence.At the Kempe Center, Michelle leads the Foster, Kin, and Adoptive Parent Training Department for Colorado’s Child Welfare Training System. In this capacity, she is responsible for the design, authorship, and implementation of statewide curricula serving caregivers across 64 Colorado counties. Her professional expertise is deeply informed by her ten years of experience as a foster parent, providing her with a foundational, lived understanding of the complexities inherent in the child welfare system.With over 28 years of experience, Michelle’s work sits at the intersection of neurobiology and organizational health; she is a trained Trust-Based Relational Intervention (TBRI) Practitioner, certified in Polyvagal Theory, and trained in the Co-Active Coaching model. She utilizes Organizational Relationship Systems Coaching (ORSC) to help navigate complex dynamics. A recipient of the Dalice Miller Hertzberg Award, Michelle is a recognized leader in the child welfare sector, dedicated to fostering equity, resilience, and excellence through coaching and systemic innovation.'
   },
   'Jude Louissaint': {
     photo: CDN + '08aa9a7aa0094bfeb36a4a41be2f5617.jpg',
-    bio: 'Jude is a Management Consultant at Public Knowledge with more than 30 years of experience across local, state, and federal child welfare systems. An International Coaching Federation Certified Master Coach, he specializes in leadership development, executive coaching, and partnering with leaders to strengthen performance, align practice with values, and drive sustainable systems change. His work integrates continuous quality improvement, data-informed decision-making, and reflective supervision to build high-functioning teams and improve outcomes for children and families. Jude began his child welfare career with New York City\'s Administration for Children\'s Services, where he served as Director of Field Operations, overseeing child protective services. Before joining Public Knowledge, he served as Deputy Chief of the Unaccompanied Children Bureau. Jude holds a Master of Social Work from Fordham University.'
+    bio: 'Jude is a Management Consultant at Public Knowledge with more than 30 years of experience across local, state, and federal child welfare systems. An International Coaching Federation Certified Master Coach, he specializes in leadership development, executive coaching, and partnering with leaders to strengthen performance, align practice with values, and drive sustainable systems change. His work integrates continuous quality improvement, data-informed decision-making, and reflective supervision to build high-functioning teams and improve outcomes for children and families. Jude began his child welfare career with New York City’s Administration for Children’s Services, where he served as Director of Field Operations, overseeing child protective services. Before joining Public Knowledge, he served as Deputy Chief of the Unaccompanied Children Bureau. He is recognized for leading transformational initiatives, fostering collaboration, and delivering measurable improvements in program performance. Jude holds a Master of Social Work from Fordham University.'
   },
   'Tracy Malone': {
     photo: CDN + '1674b55b6c684eda8785ab18030738e1.jpg',
-    bio: 'Tracy is an experienced child welfare administrator with strong leadership and relationship-building skills. She brings 28 years of public child welfare experience, ranging from frontline worker and supervisor to regional and statewide director positions. She specializes in child welfare reform, court improvement, education and training, and continuous quality improvement (CQI). Her collaborative approach and communication skills are invaluable in building strong public and private child welfare partnerships that promote improvements in child welfare systems. A Prosci® Certified Change Practitioner, Tracy is a master\'s-level social worker with extensive leadership and project management expertise.'
+    bio: 'Tracy is an experienced child welfare administrator with strong leadership and relationship-building skills. She brings 28 years of public child welfare experience, ranging from frontline worker and supervisor to regional and statewide director positions. She specializes in child welfare reform, court improvement, education and training, and continuous quality improvement (CQI). Her collaborative approach and communication skills are invaluable in building strong public and private child welfare partnerships that promote improvements in child welfare systems. A Prosci® Certified Change Practitioner, Tracy is a master’s-level social worker with extensive leadership and project management expertise.'
   },
   'Stacey Moss': {
     photo: CDN + 'a0b234bb70834f66aedb516198806f4b.jpg',
-    bio: 'Stacey Moss, JD, CWLS, PMP®, IOSM Teacher and Facilitator, is President and CEO of Public Knowledge®, bringing more than 25 years of experience across government, legal, and nonprofit sectors. A Child Welfare Law Specialist and Project Management Professional, she has represented parents, children, and agencies and now partners with states nationwide to strengthen child welfare systems. Her work spans system transformation, CCWIS planning and procurement, organizational change management, and leadership development. Stacey has delivered more than 200 trainings and presentations on leadership, procurement, and child welfare practice. She also leads the Public Knowledge® IMPACT Leadership™ Program, helping leaders navigate complex initiatives with clarity and accountability.'
+    bio: 'Stacey Moss, JD, CWLS, PMP®, IOSM Teacher and Facilitator, is President and CEO of Public Knowledge®, bringing more than 25 years of experience across government, legal, and nonprofit sectors. A Child Welfare Law Specialist and Project Management Professional, she has represented parents, children, and agencies and now partners with states nationwide to strengthen child welfare systems. Her work spans system transformation, CCWIS planning and procurement, organizational change management, and leadership development.Stacey has delivered more than 200 trainings and presentations on leadership, procurement, and child welfare practice. She also leads the Public Knowledge® IMPACT LeadershipTM Program, helping leaders navigate complex initiatives with clarity and accountability.'
   },
   'Liz Wendel': {
     photo: CDN + '8000a49cebfc454c9fb103b9d946b2c9.jpg',
@@ -102,11 +170,11 @@ const SKILL_SPEAKER_OVERRIDE = {
   },
   'Colleen Gibley-Reed': {
     photo: CDN + 'f44828c03f9949b4b8725f7f99745154.jpg',
-    bio: 'Colleen Gibley-Reed (she/her) joined Illuminate Colorado in July 2024 as Director of Education, leading education strategy from curricula development through continuous quality improvement. She previously spent nearly eleven years with the Kempe Center as a Faculty Instructor and Lead County Learning Coordinator, and nineteen years with the Larimer County Department of Human Services in family preservation, ongoing child protection, foster and kinship care, staff training, and practice coaching. She also serves as adjunct faculty at the University of Denver\'s Graduate School of Social Work. Colleen believes all families deserve to thrive.'
+    bio: 'Colleen Gibley-Reed (she/her) joined the Illuminate Colorado team in July of 2024 as the Director of Education. In her role, Colleen is responsible for leading the Education Strategies of Illuminate Colorado. From curricula development and implementation, through training promotion and delivery, to revision and continuous quality improvement, Colleen oversees and ensures consistency and high-quality education programming, supports communications and evaluation processes, and engages with partners at the local, state, and national level.Before joining Illuminate, Colleen spent nearly eleven years with the Kempe Center for the Prevention and Treatment of Child Abuse and Neglect as a Faculty Instructor and Lead County Learning Coordinator for the Colorado Child Welfare Training System. In this position, she was responsible for cultivating and managing effective working relationships with the eleven largest Colorado counties to respond to their professional development needs.Previous to her work at the Kempe Center, Colleen spent nineteen years with the Larimer County Department of Human Services. Her direct child welfare experience includes work in family preservation, ongoing child protection, foster and kinship care, staff training, and practice coaching.Additionally, since 2015, Colleen has served as an adjunct faculty member at the University of Denver\'s Graduate School of Social Work, teaching courses related to power, privilege and oppression and serving as a course coordinator.  Colleen believes that all families deserve to thrive, and is passionate about using her skills to help others learn how to support families so they can reach their full potential.'
   },
   'Anna Strömberg': {
     photo: null,
-    bio: 'Anna Strömberg is a social worker with a long history of working in children\'s services, including six years in Myanmar. Committed to the idea that it takes a village to raise a child, Anna and her husband have been foster carers in Sweden for 15 years — always partnering with the children\'s parents, aunts, uncles, and grandparents from the moment the children arrive in their home.'
+    bio: 'Anna Strömberg is a social worker with a long history of working in children\'s services and also working for six years in Myanmar. Absolutely committed to the idea it takes a village to raise a child Anna and her husband have been foster carers in Sweden for 15 years. In all their fostering the Strombergs are committed to partnering with the parents, aunts, uncles and grandparents from the moment the children come to live in their home. Having done this with many children, their parents and relatives they know this approach to fostering makes for better outcomes for the children and a better experience for themselves and the children\'s family. With this experience Anna has a wealth of practical wisdom of how to work with the social workers and come together with them and the family to provide foster care that is focused on belonging and connection.'
   },
   'Andrew Turnell AM': {
     photo: CDN + '7464efdc944f405c86ac7cab697ff19c.png',
@@ -115,7 +183,7 @@ const SKILL_SPEAKER_OVERRIDE = {
   // CSV name variants (non-accented / shortened forms that come out of the CSV parser)
   'Andrew Turnell': {
     photo: CDN + '7464efdc944f405c86ac7cab697ff19c.png',
-    bio: null  // CSV has a bio for him — falls through to csvBio
+    bio: 'Andrew Turnell AM lives in Australia. Andrew is Social Work Professor of Practice at the University of Cumbria, England and principal co-creator of the Signs of Safety. Andrew is well known internationally for his ground-breaking work in applying safety-organised practice and systemic thinking to statutory child protection services publishing extensively on the Signs of Safety, the Resolutions approachs and applying solution-focused restorative practice with complex cases of torture, abuse and violence.Andrew’s work takes him around the world focusing always on child protection practice that involves everyone with natural connections to the child in building safety and belonging.  Andrew is currently working with agencies in England, Belgium, Austria, Canada, Bhutan and Sweden. Andrew has worked in partnership with Professor Eileen Munro for nearly twenty years and together they have co-authored numerous papers and reports. More information @ born2belong.com.'
   },
   'Bre McMullen': {
     photo: CDN + '5accc76ba6ec49db8182e06fc9c81347.png',
@@ -123,7 +191,7 @@ const SKILL_SPEAKER_OVERRIDE = {
   },
   'Anna Stromberg': {
     photo: null,
-    bio: 'Anna Strömberg is a social worker with a long history of working in children\'s services, including six years in Myanmar. Committed to the idea that it takes a village to raise a child, Anna and her husband have been foster carers in Sweden for 15 years — always partnering with the children\'s parents, aunts, uncles, and grandparents from the moment the children arrive in their home.'
+    bio: 'Anna Strömberg is a social worker with a long history of working in children\'s services and also working for six years in Myanmar. Absolutely committed to the idea it takes a village to raise a child Anna and her husband have been foster carers in Sweden for 15 years. In all their fostering the Strombergs are committed to partnering with the parents, aunts, uncles and grandparents from the moment the children come to live in their home. Having done this with many children, their parents and relatives they know this approach to fostering makes for better outcomes for the children and a better experience for themselves and the children\'s family. With this experience Anna has a wealth of practical wisdom of how to work with the social workers and come together with them and the family to provide foster care that is focused on belonging and connection.'
   }
 };
 
@@ -147,11 +215,11 @@ try {
 const speakersBySessionCode = {};
 for (let i = 1; i < speakerRows.length; i++) {
   const r = speakerRows[i];
-  if (!r || r.length < 23) continue;
-  const sessionCode = (r[22] || '').trim();
+  if (!r) continue;
+  const sessionCode = cell(r, SPK.code).trim();
   if (!sessionCode) continue;
 
-  let fullName = (r[0] || '').trim().replace(/^﻿/, '');
+  let fullName = cell(r, SPK.name).trim().replace(/^﻿/, '');
   if (fullName.includes(',')) {
     const ci = fullName.indexOf(',');
     const last = fullName.substring(0, ci).trim();
@@ -159,14 +227,18 @@ for (let i = 1; i < speakerRows.length; i++) {
     fullName = first + ' ' + last;
   }
 
-  const csvBio   = (r[13] || '').trim();
+  const csvBio   = cell(r, SPK.bio).trim();
   const override = SKILL_SPEAKER_OVERRIDE[fullName] || {};
 
+  // Curated skill-institute bio wins over the CSV when present (override.bio
+  // non-null); otherwise fall back to the CSV bio. Photos always prefer the
+  // curated override. This keeps skill speakers frozen even though Cvent now
+  // exports its own (longer) bios for them.
   const speaker = {
     name:  fullName,
-    title: (r[17] || '').trim(),
-    org:   (r[10] || '').trim(),
-    bio:   csvBio || override.bio || '',
+    title: cell(r, SPK.title).trim(),
+    org:   cell(r, SPK.org).trim(),
+    bio:   override.bio || csvBio || '',
     photo: override.photo || null
   };
 
@@ -196,15 +268,15 @@ function esc(s) {
 const blocks = {};
 for (let i = 1; i < sessionRows.length; i++) {
   const r = sessionRows[i];
-  if (!r || r.length < 18) continue;
-  let name = (r[0] || '').trim().replace(/^﻿/, '');
-  const code        = (r[1]  || '').trim();
-  const presType    = (r[8]  || '').trim();
-  const theme       = (r[3]  || '').trim();
-  const startStr    = (r[4]  || '').trim();
-  const endStr      = (r[5]  || '').trim();
-  const description = (r[6]  || '').trim();
-  const tagsRaw     = (r[35] || '').trim();
+  if (!r) continue;
+  let name = cell(r, SES.name).trim().replace(/^﻿/, '');
+  const code        = cell(r, SES.code).trim();
+  const presType    = cell(r, SES.type).trim();
+  const theme       = cell(r, SES.theme).trim();
+  const startStr    = cell(r, SES.start).trim();
+  const endStr      = cell(r, SES.end).trim();
+  const description = cell(r, SES.desc).trim();
+  const tagsRaw     = cell(r, SES.tags).trim();
 
   if (!name || !startStr) continue;
 

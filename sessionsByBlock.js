@@ -15,7 +15,7 @@ const sessionsByBlock = {
   ],
   "2026-10-06|07:00": [
     {
-      name: "Amplifying Unheard Voices: Practical Skills for Power‑Sharing and Lived  Expertise in Child Welfare",
+      name: "Holding Space for Family Leadership — Whose Meeting Is This, Anyway?",
       code: "AMPL6868",
       type: "skill",
       theme: "Rights, Advocacy, and Family Power",

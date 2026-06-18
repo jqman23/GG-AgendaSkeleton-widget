@@ -272,7 +272,24 @@ function positionModalOverlay(anchorEl) {
     anchorY = window.scrollY + window.innerHeight / 2;
   }
 
-  if (modal) modal.style.top = anchorY + "px";
+  if (modal) {
+    modal.style.top = anchorY + "px";
+    // Clamp vertically so the box stays within the visible viewport instead of
+    // hanging off the top/bottom edge — important on short (mobile) screens where
+    // a card near an edge would otherwise push the modal partly out of view.
+    const standalone = window.parent === window;
+    if (standalone || hasParentMetrics) {
+      const viewTop = hasParentMetrics ? parentScrollTop : window.scrollY;
+      const half = modal.getBoundingClientRect().height / 2;
+      const pad = 20;
+      const minY = viewTop + half + pad;
+      const maxY = viewTop + vh - half - pad;
+      // If the modal is taller than the viewport, just center it (internal scroll
+      // handles the overflow); otherwise keep the chosen anchor in [minY, maxY].
+      modal.style.top = (minY > maxY ? viewTop + vh / 2
+                                     : Math.min(Math.max(anchorY, minY), maxY)) + "px";
+    }
+  }
   modalAnchorEl = anchorEl || null;
 }
 

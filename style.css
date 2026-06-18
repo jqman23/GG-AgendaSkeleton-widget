@@ -1028,16 +1028,6 @@ body {
 .spModalSession:last-child { margin-bottom: 0; }
 .spModalSession:hover { background: rgba(190,190,123,0.25); }
 
-@media (max-width: 760px) { .spCards { grid-template-columns: repeat(4, 1fr); } }
-@media (max-width: 520px) { .spCards { grid-template-columns: repeat(3, 1fr); } }
-
-@media (max-width: 700px) {
-  .timeRow { grid-template-columns: 1fr; gap: 6px; }
-  .timeLabel { padding-left: 4px; }
-  .tzSelector { width: 100%; align-items: flex-start; flex-direction: column; }
-  .tzSelector select { width: 100%; max-width: 100%; }
-}
-
 /* ── Search popup ───────────────────────────────────────────── */
 .searchOverlay {
   display: none;
@@ -1322,4 +1312,132 @@ body {
   color: rgba(18,35,69,0.48);
   font-weight: 800;
   letter-spacing: 0.03em;
+}
+
+/* ════════════════════════════════════════════════════════════════
+   RESPONSIVE — tablet & mobile
+   Breakpoints: 900 (tablet landscape) · 768 (tablet) · 700 (phones) ·
+   430 (small phones). Mobile rules live here, at the end of the file,
+   so they reliably win the cascade over the base rules above.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Tablet (landscape) ────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .spCards { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── Tablet / small laptop: drop the sticky header ─────────────────
+   In the Cvent embed the iframe is sized to its full content height and
+   never scrolls internally, so position:sticky has no effect there. On
+   narrower screens the header wraps tall enough that pinning it would
+   waste too much of the viewport, so let it scroll away instead. */
+@media (max-width: 768px) {
+  .topBar {
+    position: static;
+    box-shadow: 0 6px 16px rgba(18,35,69,0.06);
+  }
+}
+
+/* ── Phones / narrow viewports ─────────────────────────────────── */
+@media (max-width: 700px) {
+  #agendaWidget { margin: 18px auto; padding: 0 10px; }
+
+  .topBar {
+    margin: 0 -10px 18px;
+    padding: 12px 10px;
+    gap: 14px;
+  }
+
+  /* Day tabs stack full-width for big tap targets; Speakers + Search
+     split the row beneath them. */
+  .dayToggle { width: 100%; gap: 8px; }
+  .daySep { display: none; }
+  .dayBtn {
+    flex: 1 1 100%;
+    text-align: center;
+    padding: 12px 14px;
+    font-size: 0.9rem;
+  }
+  .speakerViewBtn {
+    flex: 1 1 0;
+    justify-content: center;
+    padding: 11px 12px;
+    font-size: 0.82rem;
+  }
+
+  /* Time-zone + filter controls go full width */
+  .tzSelector {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .tzSelector label { font-size: 0.95rem; }
+  .tzSelector select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 12px 11px;
+  }
+  .filterToggle { width: 100%; }
+  .filterToggle button { width: 100%; box-sizing: border-box; }
+
+  /* Expand-all + PDF download share a wrapping row */
+  .expandControls { flex-wrap: wrap; }
+  .expandBtn { flex: 1 1 auto; text-align: center; }
+  .pdfBtn { flex: 2 1 auto; justify-content: center; }
+
+  .skillNote { flex-wrap: wrap; }
+
+  /* Agenda rows: time label + chevron on top, the block spans below */
+  .timeRow {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "time chevron"
+      "block block";
+    gap: 4px 8px;
+    align-items: center;
+  }
+  .timeLabel { grid-area: time; padding-left: 2px; font-size: 0.95rem; }
+  .sessionBlock { grid-area: block; padding: 14px; }
+  .chevron { grid-area: chevron; padding-right: 2px; }
+
+  /* Expanded session panel: full width, no desktop indent */
+  .sessionPanel {
+    margin-left: 0;
+    margin-right: 0;
+    padding: 14px 12px 12px;
+    border-radius: 0 0 14px 14px;
+  }
+  .sessionGrid { grid-template-columns: 1fr; gap: 10px; }
+
+  /* Speaker chips: let names/orgs wrap instead of overflowing the card */
+  .speakerChip { max-width: 100%; }
+  .speakerChipInfo { min-width: 0; }
+  .speakerChipName { white-space: normal; }
+  .speakerChipMeta { white-space: normal; max-width: 100%; }
+
+  /* Speaker view */
+  .spCards { grid-template-columns: repeat(3, 1fr); }
+  .spControls { gap: 10px; }
+
+  /* Modals: trim padding so they fit small screens */
+  .spModal { padding: 20px 18px 18px; border-radius: 16px; }
+  .li-modal { padding: 18px; }
+  .li-modal textarea { height: 180px; }
+}
+
+/* ── Small phones ──────────────────────────────────────────────── */
+@media (max-width: 430px) {
+  #agendaWidget { font-size: 16px; }
+  .dayBtn { font-size: 0.85rem; padding: 11px 12px; }
+  .spCards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .sessionBlock { padding: 12px; gap: 10px; }
+  .icon { width: 32px; height: 32px; }
+  .sessionType { font-size: 1rem; }
+  .sessionTypeRow { gap: 10px; }
+  .spModal { padding: 18px 14px 16px; }
+  .spModalHeader { gap: 12px; }
+  .spModalPhoto, .spModalInitials { width: 56px; height: 56px; }
+  .searchModal, .spModal { border-radius: 14px; }
 }

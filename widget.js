@@ -347,18 +347,31 @@ function formatInTimezone(dateObj, timezone) {
 
 // ─── TIME LABEL BUILDER ───────────────────────────────────────────────────────
 // Sessions are filed onto the tab matching their LOCAL START DATE, so a block
-// always starts on its tab's date. The only qualifier we ever need is when the
-// session's local END date falls on the following day ("ends next day").
-function buildTimeLabel(startUtc, endUtc, timezone) {
+// always starts on its tab's date. The only qualifier we normally need is when
+// the session's local END date falls on the following day ("ends next day").
+//
+// showDate prefixes the block's local start date (e.g. "Oct 6 · 5:00 PM – …").
+// We turn it on only for the Skill Building Institutes tab when a timezone has
+// split those blocks across two calendar dates, so each row says which day it is.
+function buildTimeLabel(startUtc, endUtc, timezone, showDate) {
   const startDateStr = getLocalDateString(startUtc, timezone);
   const endDateStr   = getLocalDateString(endUtc, timezone);
   const startTimeStr = formatInTimezone(startUtc, timezone);
   const endTimeStr   = formatInTimezone(endUtc, timezone);
 
+  const prefix = showDate ? `${formatTabDate(startDateStr)} · ` : "";
   if (startDateStr < endDateStr) {
-    return `${startTimeStr} – ${endTimeStr} next day`;
+    return `${prefix}${startTimeStr} – ${endTimeStr} next day`;
   }
-  return `${startTimeStr} – ${endTimeStr}`;
+  return `${prefix}${startTimeStr} – ${endTimeStr}`;
+}
+
+// True when a tab's blocks land on more than one local date in the given zone —
+// i.e. the per-row time labels need an explicit date to stay unambiguous.
+function tabSpansMultipleDates(tab, zone) {
+  const dates = new Set(tab.blocks.map(b =>
+    getLocalDateString(easternToUtc(b[0], b[1]), zone)));
+  return dates.size > 1;
 }
 
 // ─── TIMEZONE ABBREVIATION MAP ────────────────────────────────────────────────
@@ -1709,6 +1722,9 @@ function buildAgendaPdfDoc(selectedZone) {
     const dates = [...new Set(tab.blocks.map(b =>
       getLocalDateString(easternToUtc(b[0], b[1]), selectedZone)))].sort();
     const dateLabel = dates.map(longDate).join("  /  ");
+    // When the Institutes section spans two local dates, prefix each row's time
+    // with its date so it's clear which day each block belongs to.
+    const showDate = tab.kind === "institute" && dates.length > 1;
 
     const rows = [];
     tab.blocks.forEach(([sd, st, ed, et, types]) => {
@@ -1717,7 +1733,7 @@ function buildAgendaPdfDoc(selectedZone) {
 
       if (isTbdBlock(blockKey)) {
         const startUtc = easternToUtc(sd, st), endUtc = easternToUtc(ed, et);
-        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone);
+        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, showDate);
         rows.push(`<article class="aRow">
           <div class="aTime">${pdfEsc(timeLabel)}${tzAbbr ? `<div class="aTz">${tzAbbr}</div>` : ""}</div>
           <div class="aMain">
@@ -1732,7 +1748,7 @@ function buildAgendaPdfDoc(selectedZone) {
         const sType = s.type || (types && types[0]) || "workshop";
         const startUtc = easternToUtc(sd, st);
         const endUtc   = easternToUtc(sd, s.endTime || et);
-        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone);
+        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, showDate);
         const themeIcon = PDF_THEME_ICON[(s.theme || "").trim()];
         const themeHtml = s.theme
           ? `<div class="aTheme"><span>${pdfEsc(s.theme)}</span>${themeIcon ? `<img class="aThemeIcon" src="${themeIcon}" crossorigin="anonymous" alt="">` : ""}</div>`
@@ -1991,6 +2007,10 @@ function render(tabId) {
   const skillNote = document.getElementById("skillNote");
   skillNote.style.display = tab.kind === "institute" ? "" : "none";
 
+  // Only the Institutes tab can hold blocks from two local dates; show the date
+  // on each time label when that happens.
+  const showDate = tab.kind === "institute" && tabSpansMultipleDates(tab, selectedZone);
+
   tab.blocks.forEach(([startDate, startTime, endDate, endTime, types]) => {
     const startUtc = easternToUtc(startDate, startTime);
     const endUtc   = easternToUtc(endDate, endTime);
@@ -2002,7 +2022,7 @@ function render(tabId) {
     const comfortable = category === "daytime";
     const neutral     = category === "neutral";
 
-    const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone);
+    const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, showDate);
     const tzAbbr    = getTzAbbreviation(selectedZone);
     const primary   = types[0];
     const blockKey  = `${startDate}|${startTime}`;

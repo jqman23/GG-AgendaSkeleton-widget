@@ -493,31 +493,8 @@ const allZones = [
 
 if (!allZones.includes(browserZone)) allZones.push(browserZone);
 
-const sortedZones = allZones.slice().sort((a, b) => getUtcOffsetMinutes(a) - getUtcOffsetMinutes(b));
-
-// Pinned to the top after the detected zone, in this exact order. Everything
-// not listed here falls below, sorted earliest → latest by UTC offset.
-const ANCHOR_ZONES = [
-  "America/Los_Angeles", // Pacific
-  "America/Denver",      // Mountain
-  "America/Chicago",     // Central
-  "America/New_York",    // Eastern
-  "Europe/London",       // London
-  "Australia/Perth", "Australia/Brisbane", "Australia/Adelaide", "Australia/Sydney",
-  "Pacific/Auckland"     // New Zealand
-];
-
-const orderedZones = [];
-const placedZones  = new Set();
-const pushZone = z => {
-  if (z && !placedZones.has(z) && allZones.includes(z)) {
-    placedZones.add(z);
-    orderedZones.push(z);
-  }
-};
-pushZone(browserZone);          // detected zone always first
-ANCHOR_ZONES.forEach(pushZone); // then the pinned anchors
-sortedZones.forEach(pushZone);  // then the rest, earliest → latest
+// orderedZones is built further down, once tzFlags (the country grouping key) is
+// defined — detected zone first, then all zones grouped by country.
 
 const tzFlags = {
   "America/New_York":               "🇺🇸",
@@ -569,6 +546,33 @@ const tzFlags = {
   "Pacific/Auckland":               "🇳🇿",
   "Pacific/Fiji":                   "🇫🇯"
 };
+
+// Detected zone always first, then every zone grouped by country (flag) so a
+// country's zones stay adjacent. Country groups are ordered by their earliest
+// zone's UTC offset, and zones within a country by offset — so a group may sit a
+// couple of hours "off" from a strict global sort, but it stays together.
+const zoneGroups = new Map();
+for (const z of allZones) {
+  const key = tzFlags[z] || z; // fall back to the zone id for any flagless zone
+  if (!zoneGroups.has(key)) zoneGroups.set(key, []);
+  zoneGroups.get(key).push(z);
+}
+for (const arr of zoneGroups.values()) {
+  arr.sort((a, b) => getUtcOffsetMinutes(a) - getUtcOffsetMinutes(b));
+}
+const groupsByOffset = [...zoneGroups.values()]
+  .sort((a, b) => getUtcOffsetMinutes(a[0]) - getUtcOffsetMinutes(b[0]));
+
+const orderedZones = [];
+const placedZones  = new Set();
+const pushZone = z => {
+  if (z && !placedZones.has(z) && allZones.includes(z)) {
+    placedZones.add(z);
+    orderedZones.push(z);
+  }
+};
+pushZone(browserZone); // detected zone always first
+groupsByOffset.forEach(group => group.forEach(pushZone));
 
 orderedZones.forEach(zone => {
   const city   = zone.split("/").pop().replaceAll("_", " ");

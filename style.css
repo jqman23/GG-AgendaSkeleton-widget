@@ -1496,3 +1496,11 @@ body {
   .spModalPhoto, .spModalInitials { width: 56px; height: 56px; }
   .searchModal, .spModal { border-radius: 14px; }
 }
+
+.speakerModalSessionInline .sessionCard {
+  cursor: default;
+}
+
+.speakerModalSessionInline .sessionCard:hover {
+  transform: none;
+}

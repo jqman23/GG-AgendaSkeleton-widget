@@ -872,7 +872,7 @@ function renderSpeakerModalBody(slug) {
     : `<div class="spModalInitials">${initials}</div>`;
 
   const sessionButtons = sp.sessions.map(sess =>
-    `<button class="spModalSession" aria-expanded="false" onclick="onSpeakerSessionClick('${esc(sess.blockKey)}','${esc(sess.code)}', event)">${esc(sess.name)}</button>`
+    `<button type="button" class="spModalSession" aria-expanded="false" data-block="${esc(sess.blockKey)}" data-code="${esc(sess.code)}" onclick="onSpeakerSessionClick('${esc(sess.blockKey)}','${esc(sess.code)}', event)">${esc(sess.name)}</button>`
   ).join("");
 
   document.getElementById("spModalBody").innerHTML = `
@@ -912,24 +912,25 @@ function openSpeakerModal(slug, ev) {
   queueWidgetHeightPost();
 }
 
-// Speaker-modal session click. On mobile, navigating into the agenda doesn't
-// work well inside the embedded iframe (the parent controls scrolling), so show
-// a read-only session overview popup instead. Desktop keeps navigation.
+// Speaker-modal session click.
+// Always expand/collapse details inline inside the speaker popup.
+// Do NOT use navigateToSession here; iframe/mobile sizing can misreport breakpoints.
 function onSpeakerSessionClick(blockKey, code, ev) {
   if (ev) { ev.preventDefault(); ev.stopPropagation(); }
 
-  if (isMobileView()) {
-    toggleSpeakerModalInlineSession(blockKey, code, ev ? ev.currentTarget : null);
-    return;
-  }
+  const triggerEl = ev && ev.currentTarget
+    ? ev.currentTarget
+    : document.querySelector(`.spModalSession[data-code="${CSS.escape(String(code))}"]`);
 
-  navigateToSession(blockKey, code);
+  toggleSpeakerModalInlineSession(blockKey, code, triggerEl);
 }
 
 function getSpeakerModalSessionInlineHTML(blockKey, code) {
-  const s = sessionMap[code];
+  const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
+  const s = sessionMap[code] || sessions.find(x => String(x.code) === String(code));
+
   if (!s) {
-    return `<div class="searchSessionInline"><div class="searchEmpty">Session details could not be found.</div></div>`;
+    return `<div class="searchSessionInline speakerModalSessionInline"><div class="searchEmpty">Session details could not be found.</div></div>`;
   }
 
   const prefix = "spmodal-" + String(code).replace(/[^a-zA-Z0-9_-]/g, "-") + "-";
@@ -943,7 +944,7 @@ function closeSpeakerModalInlineSessions() {
   const modalBody = document.getElementById("spModalBody");
   if (!modalBody) return;
 
-  modalBody.querySelectorAll(".searchSessionInline").forEach(el => {
+  modalBody.querySelectorAll(".speakerModalSessionInline").forEach(el => {
     const prevBtn = el.previousElementSibling;
     if (prevBtn) prevBtn.setAttribute("aria-expanded", "false");
     el.remove();
@@ -951,58 +952,47 @@ function closeSpeakerModalInlineSessions() {
 }
 
 function toggleSpeakerModalInlineSession(blockKey, code, triggerEl) {
-  if (!triggerEl) return;
+  const modalBody = document.getElementById("spModalBody");
+  if (!modalBody) return;
 
-  const existing = triggerEl.nextElementSibling;
-  if (existing && existing.classList.contains("searchSessionInline") && existing.dataset.code === String(code)) {
+  const existing = triggerEl && triggerEl.nextElementSibling &&
+    triggerEl.nextElementSibling.classList.contains("speakerModalSessionInline") &&
+    triggerEl.nextElementSibling.dataset.code === String(code)
+      ? triggerEl.nextElementSibling
+      : null;
+
+  if (existing) {
     existing.remove();
     triggerEl.setAttribute("aria-expanded", "false");
-    positionModalOverlay(null);
+    positionModalOverlay(modalAnchorEl);
     requestParentMetrics();
     queueWidgetHeightPost();
     return;
   }
 
   closeSpeakerModalInlineSessions();
-  triggerEl.insertAdjacentHTML("afterend", getSpeakerModalSessionInlineHTML(blockKey, code));
-  triggerEl.setAttribute("aria-expanded", "true");
 
-  const inlinePanel = triggerEl.nextElementSibling;
+  if (triggerEl) {
+    triggerEl.insertAdjacentHTML("afterend", getSpeakerModalSessionInlineHTML(blockKey, code));
+    triggerEl.setAttribute("aria-expanded", "true");
+  } else {
+    modalBody.insertAdjacentHTML("beforeend", getSpeakerModalSessionInlineHTML(blockKey, code));
+  }
+
+  const inlinePanel = triggerEl
+    ? triggerEl.nextElementSibling
+    : modalBody.querySelector(".speakerModalSessionInline:last-child");
 
   window.requestAnimationFrame(() => {
     if (inlinePanel && inlinePanel.scrollIntoView) {
       inlinePanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
 
-    positionModalOverlay(null);
+    positionModalOverlay(modalAnchorEl);
     requestParentMetrics();
     queueWidgetHeightPost();
   });
 }
-
-function showSessionOverviewInModal(blockKey, code) {
-  const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
-  const s = sessions.find(x => String(x.code) === String(code));
-  if (!s) { navigateToSession(blockKey, code); return; }
-
-  document.getElementById("spModalBody").innerHTML = `
-    <button class="searchBackBtn" onclick="reopenSpeakerModalBody()">&#8592; Back to speaker</button>
-    <div class="spModalSessionsLabel">Session overview</div>
-    <div class="sessionOverview">${buildSessionCardHTML(s, blockKey, "ov-")}</div>
-  `;
-  positionModalOverlay(null);
-  requestParentMetrics();
-  queueWidgetHeightPost();
-}
-
-function reopenSpeakerModalBody() {
-  if (!speakerModalSlug) return;
-  renderSpeakerModalBody(speakerModalSlug);
-  positionModalOverlay(null);
-  requestParentMetrics();
-  queueWidgetHeightPost();
-}
-
 function closeSpeakerModal() {
   document.getElementById("spModalOverlay").style.display = "none";
   queueWidgetHeightPost();

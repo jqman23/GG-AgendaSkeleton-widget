@@ -1016,13 +1016,26 @@ function runSearch(query) {
 }
 
 function highlightSearch(text, tokens) {
-  const safe = esc(text || "");
-  if (!tokens || !tokens.length) return safe;
+  const raw = String(text || "");
+  if (!tokens || !tokens.length) return esc(raw);
   const pattern = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).filter(Boolean).join("|");
-  if (!pattern) return safe;
-  try {
-    return safe.replace(new RegExp("(" + pattern + ")", "gi"), '<mark class="searchHl">$1</mark>');
-  } catch (e) { return safe; }
+  if (!pattern) return esc(raw);
+
+  let re;
+  try { re = new RegExp(pattern, "gi"); } catch (e) { return esc(raw); }
+
+  // Match on the RAW string and escape each slice independently, so a token can
+  // never land inside an HTML entity (e.g. the "&"/"amp" of "&amp;") and split
+  // it — which made ampersands render literally as "&amp;".
+  let out = "", last = 0, m;
+  while ((m = re.exec(raw)) !== null) {
+    out += esc(raw.slice(last, m.index));
+    out += `<mark class="searchHl">${esc(m[0])}</mark>`;
+    last = m.index + m[0].length;
+    if (m.index === re.lastIndex) re.lastIndex++; // guard against zero-width matches
+  }
+  out += esc(raw.slice(last));
+  return out;
 }
 
 function renderSearchResults() {

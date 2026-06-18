@@ -1242,6 +1242,9 @@ function renderSearchResults() {
   results.innerHTML = `<div class="searchCount">${matches.length} result${matches.length > 1 ? "s" : ""}</div>${rows}`;
 }
 
+const SEARCH_MODAL_TOP_OFFSET = 76;
+const SEARCH_MODAL_BOTTOM_PAD = 28;
+
 function getSearchViewportHeight() {
   return (hasParentMetrics && parentViewportH)
     ? parentViewportH
@@ -1249,26 +1252,13 @@ function getSearchViewportHeight() {
 }
 
 function getSearchViewportTop() {
-  if (hasParentMetrics && !isMobileView()) return parentScrollTop;
+  if (hasParentMetrics) return parentScrollTop || 0;
   if (window.parent === window) return window.scrollY || 0;
-
-  // On mobile inside the Cvent iframe, parentScrollTop can be stale after switching
-  // to speaker view. Anchor-based positioning is more reliable there.
   return 0;
 }
 
-function getSearchAnchorTop() {
-  const anchor = searchOverlayAnchorEl || document.getElementById("searchOpenBtn") || document.querySelector(".topBar");
-  if (!anchor) return null;
-
-  const rect = anchor.getBoundingClientRect();
-  if (!rect || !Number.isFinite(rect.bottom)) return null;
-
-  return Math.max(12, Math.round(rect.bottom + 10));
-}
-
-function positionSearchOverlay(anchorEl) {
-  if (anchorEl) searchOverlayAnchorEl = anchorEl;
+function positionSearchOverlay(options) {
+  options = options || {};
 
   const overlay = document.getElementById("searchOverlay");
   if (!overlay || overlay.style.display !== "block") return;
@@ -1276,33 +1266,28 @@ function positionSearchOverlay(anchorEl) {
   const modal = overlay.querySelector(".searchModal");
   if (!modal) return;
 
+  // In the Cvent iframe, wait for fresh parent metrics when possible.
+  // This prevents the first stale positioning pass from showing in a wrong place.
+  const needsParentMetrics = window.parent !== window;
+  if (needsParentMetrics && !hasParentMetrics && !options.allowFallback) return;
+
   const vh = getSearchViewportHeight();
-  const mobile = isMobileView();
   const viewTop = getSearchViewportTop();
 
-  // Desktop/tablet: keep the existing visible-viewport behavior.
-  // Mobile: anchor under the actual Search button/top bar so speaker view and
-  // session tabs open the popup in the same visual location.
-  const topOffset = Math.max(24, Math.round(vh * 0.07));
-  const anchorTop = getSearchAnchorTop();
+  // One rule for every state: visible viewport top + fixed offset.
+  // Does not depend on active tab, speaker view, expanded blocks, content height,
+  // or the Search button's position.
+  const top = viewTop + SEARCH_MODAL_TOP_OFFSET;
+  const maxHeight = Math.max(240, vh - SEARCH_MODAL_TOP_OFFSET - SEARCH_MODAL_BOTTOM_PAD);
 
-  let top = viewTop + topOffset;
-  if (mobile && anchorTop !== null) {
-    top = anchorTop;
-  } else if (!hasParentMetrics && anchorTop !== null) {
-    top = anchorTop;
-  }
-
-  const maxHeight = Math.max(240, vh - (mobile ? 36 : topOffset) - 24);
-  modal.style.maxHeight = maxHeight + "px";
   modal.style.top = top + "px";
+  modal.style.maxHeight = maxHeight + "px";
+  modal.style.visibility = "visible";
 
-  // Make sure the absolute overlay is tall enough to include the modal even when
-  // speaker view has a different document height than the agenda view.
   overlay.style.height = Math.max(
     getDocumentHeight(),
-    top + maxHeight + 80,
-    (hasParentMetrics ? parentScrollTop + vh + 80 : vh + 80)
+    top + maxHeight + 90,
+    viewTop + vh + 90
   ) + "px";
 }
 function resetTimeFilterForSearch() {
@@ -1327,25 +1312,31 @@ function openSearch(ev) {
   const input   = document.getElementById("searchInput");
   if (!overlay || !input) return;
 
-  searchOverlayAnchorEl = ev && ev.currentTarget
-    ? ev.currentTarget
-    : document.getElementById("searchOpenBtn");
+  searchOverlayAnchorEl = null;
 
   overlay.style.display = "block";
+
+  const modal = overlay.querySelector(".searchModal");
+  if (modal) modal.style.visibility = "hidden";
+
   renderSearchResults();
 
-  positionSearchOverlay(searchOverlayAnchorEl);
-  requestParentMetrics(() => positionSearchOverlay(searchOverlayAnchorEl));
-
-  // Run one more frame after layout changes from speaker/session view have settled.
-  window.requestAnimationFrame(() => positionSearchOverlay(searchOverlayAnchorEl));
-
-  // Focus after the overlay is painted so mobile keyboards open reliably.
-  setTimeout(() => {
-    positionSearchOverlay(searchOverlayAnchorEl);
+  const showAndFocus = () => {
+    positionSearchOverlay({ allowFallback: true });
     input.focus();
     input.select();
-  }, 30);
+  };
+
+  if (window.parent !== window) {
+    requestParentMetrics(showAndFocus);
+
+    // Fallback if the embed does not respond quickly.
+    setTimeout(() => {
+      if (!modal || modal.style.visibility !== "visible") showAndFocus();
+    }, 120);
+  } else {
+    showAndFocus();
+  }
 }
 function closeSearch() {
   const overlay = document.getElementById("searchOverlay");

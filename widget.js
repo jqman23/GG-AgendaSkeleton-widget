@@ -3,6 +3,7 @@
 const SVG_GCAL    = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/18455c8f54504314847defa08b8dcda2.png" width="16" height="16" alt="Google Calendar" style="display:block;">`;
 const SVG_OUTLOOK = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/17c86dcff13d41a386d3607a4f6fd948.png" width="16" height="16" alt="Outlook Calendar" style="display:block;">`;
 const SVG_LINKEDIN = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433a2.062 2.062 0 01-2.063-2.065 2.064 2.064 0 112.063 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>`;
+const SESSION_LOCATION = "All sessions are accessed via Attendee Hub";
 
 // ─── ICONS ───────────────────────────────────────────────────────────────────
 const icons = {
@@ -691,7 +692,8 @@ function buildCalUrls(s, blockKey) {
     + "&text=" + encodeURIComponent(s.name)
     + "&dates=" + fmtGcal(sd, st) + "/" + fmtGcal(sd, endTime)
     + "&ctz=America%2FDenver"
-    + "&details=" + encodeURIComponent(desc);
+    + "&details=" + encodeURIComponent(desc)
+    + "&location=" + encodeURIComponent(SESSION_LOCATION);
 
   // Outlook: ISO with -06:00 offset + Windows timezone ID
   const fmtOutlook = (date, time) => date + "T" + time + ":00-06:00";
@@ -700,7 +702,8 @@ function buildCalUrls(s, blockKey) {
     + "&startdt=" + encodeURIComponent(fmtOutlook(sd, st))
     + "&enddt=" + encodeURIComponent(fmtOutlook(sd, endTime))
     + "&timeZone=" + encodeURIComponent("Mountain Standard Time")
-    + "&body=" + encodeURIComponent(desc);
+    + "&body=" + encodeURIComponent(desc)
+    + "&location=" + encodeURIComponent(SESSION_LOCATION);
 
   return { gcal, outlook };
 }
@@ -736,6 +739,7 @@ function downloadICS(code) {
   const endUtc   = easternToUtc(sd, endTime);
   const fmt      = dt => dt.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
   const safeName = s.name.replace(/[\\;,]/g, "\\$&");
+  const safeLocation = SESSION_LOCATION.replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n");
   const safeDesc = (s.description || "").replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n").slice(0, 500);
   const ics = [
     "BEGIN:VCALENDAR", "VERSION:2.0",
@@ -747,6 +751,7 @@ function downloadICS(code) {
     "DTSTART:" + fmt(startUtc),
     "DTEND:" + fmt(endUtc),
     "SUMMARY:" + safeName,
+    "LOCATION:" + safeLocation,
     "DESCRIPTION:" + safeDesc,
     "END:VEVENT", "END:VCALENDAR"
   ].join("\r\n");
@@ -1149,7 +1154,7 @@ function renderSearchResults() {
       const typeLabel = getSessionLabel(it.type);
       const metaBits = [searchDateTimeLabel(it.blockKey), typeLabel, it.theme].filter(Boolean).join(" · ");
       const spk = it.speakers && it.speakers.length ? it.speakers.join(", ") : "";
-      return `<button class="searchResult" data-kind="session" data-block="${esc(it.blockKey)}" data-code="${esc(it.code)}">
+      return `<button class="searchResult" data-kind="session" data-block="${esc(it.blockKey)}" data-code="${esc(it.code)}" aria-expanded="false">
         <span class="srKind srKind--session">Session</span>
         <span class="srMain">
           <span class="srTitle">${highlightSearch(it.name, tokens)}</span>
@@ -1231,7 +1236,63 @@ function closeSearch() {
   renderSearchResults();
 }
 
-function selectSearchSession(blockKey, code) {
+function selectSearchSession(blockKey, code, triggerEl) {
+  if (isMobileView()) {
+    toggleSearchInlineSession(blockKey, code, triggerEl);
+    return;
+  }
+  closeSearch();
+  navigateToSession(blockKey, code);
+}
+
+function getSearchSessionInlineHTML(blockKey, code) {
+  const s = sessionMap[code];
+  if (!s) {
+    return `<div class="searchSessionInline"><div class="searchEmpty">Session details could not be found.</div></div>`;
+  }
+
+  const prefix = "search-" + String(code).replace(/[^a-zA-Z0-9_-]/g, "-") + "-";
+
+  return `<div class="searchSessionInline" data-code="${esc(code)}" data-block="${esc(blockKey)}">
+    <div class="sessionOverview">${buildSessionCardHTML(s, blockKey, prefix)}</div>
+  </div>`;
+}
+
+function closeSearchInlineSessions() {
+  document.querySelectorAll(".searchSessionInline").forEach(el => {
+    const prevBtn = el.previousElementSibling;
+    if (prevBtn) prevBtn.setAttribute("aria-expanded", "false");
+    el.remove();
+  });
+}
+
+function toggleSearchInlineSession(blockKey, code, triggerEl) {
+  if (!triggerEl) return;
+
+  const existing = triggerEl.nextElementSibling;
+  if (existing && existing.classList.contains("searchSessionInline") && existing.dataset.code === String(code)) {
+    existing.remove();
+    triggerEl.setAttribute("aria-expanded", "false");
+    positionSearchOverlay();
+    queueWidgetHeightPost();
+    return;
+  }
+
+  closeSearchInlineSessions();
+  triggerEl.insertAdjacentHTML("afterend", getSearchSessionInlineHTML(blockKey, code));
+  triggerEl.setAttribute("aria-expanded", "true");
+  positionSearchOverlay();
+  queueWidgetHeightPost();
+}
+
+function toggleSearchSpeakerSession(ev, btn, blockKey, code) {
+  if (ev) ev.stopPropagation();
+
+  if (isMobileView()) {
+    toggleSearchInlineSession(blockKey, code, btn);
+    return;
+  }
+
   closeSearch();
   navigateToSession(blockKey, code);
 }
@@ -1258,7 +1319,7 @@ function renderSearchSpeakerDetails(name) {
       s ? getSessionLabel(s.type) : ""
     ].filter(Boolean).join(" · ");
 
-    return `<button type="button" class="searchSpeakerSession" onclick="closeSearch();navigateToSession('${esc(sess.blockKey)}','${esc(sess.code)}')">
+    return `<button type="button" class="searchSpeakerSession" onclick="toggleSearchSpeakerSession(event,this,'${esc(sess.blockKey)}','${esc(sess.code)}')" aria-expanded="false">
       <div class="searchSpeakerSessionName">${esc(sess.name)}</div>
       ${meta ? `<div class="searchSpeakerSessionMeta">${esc(meta)}</div>` : ""}
     </button>`;
@@ -2457,7 +2518,7 @@ document.getElementById("searchInput").addEventListener("input", renderSearchRes
 document.getElementById("searchResults").addEventListener("click", e => {
   const btn = e.target.closest(".searchResult");
   if (!btn) return;
-  if (btn.dataset.kind === "session") selectSearchSession(btn.dataset.block, btn.dataset.code);
+  if (btn.dataset.kind === "session") selectSearchSession(btn.dataset.block, btn.dataset.code, btn);
   else selectSearchSpeaker(btn.dataset.name);
 });
 document.addEventListener("keydown", e => {

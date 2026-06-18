@@ -513,6 +513,8 @@ body {
   border-radius: 12px;
   padding: 24px;
   width: min(480px, 92vw);
+  max-width: calc(100vw - 24px);
+  box-sizing: border-box;
   max-height: calc(100vh - 40px);
   overflow: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.22);
@@ -1312,6 +1314,32 @@ body {
   margin-top: 3px;
   line-height: 1.35;
 }
+.searchResult[aria-expanded="true"],
+.searchSpeakerSession[aria-expanded="true"] {
+  background: rgba(190,190,123,0.22);
+}
+
+.searchSessionInline {
+  background: #ffffff;
+  border: 1px solid rgba(18,35,69,0.10);
+  border-radius: 12px;
+  margin: -2px 4px 10px;
+  padding: 10px;
+  box-shadow: 0 6px 16px rgba(18,35,69,0.08);
+}
+
+.searchSessionInline .sessionOverview {
+  margin: 0;
+}
+
+.searchSessionInline .sessionCard {
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.searchSessionInline .sessionCard:hover {
+  transform: none;
+}
 /* Actual session time inside each card — title > time > tags */
 .sessionActualTime {
   font-size: 0.72rem;
@@ -1436,7 +1464,13 @@ body {
 
   /* Modals: trim padding so they fit small screens */
   .spModal { padding: 20px 18px 18px; border-radius: 16px; }
-  .li-modal { padding: 18px; }
+  .li-modal {
+    width: calc(100vw - 24px);
+    max-width: calc(100vw - 24px);
+    padding: 16px;
+  }
+  .li-modal-actions { flex-wrap: wrap; }
+  .li-modal-close { flex: 1 1 100%; text-align: left; }
   .li-modal textarea { height: 180px; }
 }
 

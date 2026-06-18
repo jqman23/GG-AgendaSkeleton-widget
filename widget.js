@@ -211,6 +211,7 @@ let parentViewportH  = 0;
 let parentViewportW  = 0;
 let hasParentMetrics = false;
 let modalAnchorEl    = null; // element the open modal is anchored to (a speaker card)
+let searchOverlayAnchorEl = null; // element the open search popup is anchored to
 let pendingMetricsCallbacks = [];
 
 function requestParentMetrics(onMetrics) {
@@ -1241,23 +1242,69 @@ function renderSearchResults() {
   results.innerHTML = `<div class="searchCount">${matches.length} result${matches.length > 1 ? "s" : ""}</div>${rows}`;
 }
 
-function positionSearchOverlay() {
-  const overlay = document.getElementById("searchOverlay");
-  if (!overlay || overlay.style.display !== "block") return;
-  const modal = overlay.querySelector(".searchModal");
-  overlay.style.height = getDocumentHeight() + "px";
-  const vh = (hasParentMetrics && parentViewportH)
+function getSearchViewportHeight() {
+  return (hasParentMetrics && parentViewportH)
     ? parentViewportH
     : (window.parent === window ? window.innerHeight : 640);
-  // Anchor the modal's TOP edge near the top of the visible viewport.
-  const topOffset = Math.max(24, Math.round(vh * 0.07));
-  if (modal) {
-    modal.style.maxHeight = Math.max(240, vh - topOffset - 24) + "px";
-    modal.style.top = ((hasParentMetrics ? parentScrollTop : window.scrollY) + topOffset) + "px";
-  }
 }
 
+function getSearchViewportTop() {
+  if (hasParentMetrics && !isMobileView()) return parentScrollTop;
+  if (window.parent === window) return window.scrollY || 0;
 
+  // On mobile inside the Cvent iframe, parentScrollTop can be stale after switching
+  // to speaker view. Anchor-based positioning is more reliable there.
+  return 0;
+}
+
+function getSearchAnchorTop() {
+  const anchor = searchOverlayAnchorEl || document.getElementById("searchOpenBtn") || document.querySelector(".topBar");
+  if (!anchor) return null;
+
+  const rect = anchor.getBoundingClientRect();
+  if (!rect || !Number.isFinite(rect.bottom)) return null;
+
+  return Math.max(12, Math.round(rect.bottom + 10));
+}
+
+function positionSearchOverlay(anchorEl) {
+  if (anchorEl) searchOverlayAnchorEl = anchorEl;
+
+  const overlay = document.getElementById("searchOverlay");
+  if (!overlay || overlay.style.display !== "block") return;
+
+  const modal = overlay.querySelector(".searchModal");
+  if (!modal) return;
+
+  const vh = getSearchViewportHeight();
+  const mobile = isMobileView();
+  const viewTop = getSearchViewportTop();
+
+  // Desktop/tablet: keep the existing visible-viewport behavior.
+  // Mobile: anchor under the actual Search button/top bar so speaker view and
+  // session tabs open the popup in the same visual location.
+  const topOffset = Math.max(24, Math.round(vh * 0.07));
+  const anchorTop = getSearchAnchorTop();
+
+  let top = viewTop + topOffset;
+  if (mobile && anchorTop !== null) {
+    top = anchorTop;
+  } else if (!hasParentMetrics && anchorTop !== null) {
+    top = anchorTop;
+  }
+
+  const maxHeight = Math.max(240, vh - (mobile ? 36 : topOffset) - 24);
+  modal.style.maxHeight = maxHeight + "px";
+  modal.style.top = top + "px";
+
+  // Make sure the absolute overlay is tall enough to include the modal even when
+  // speaker view has a different document height than the agenda view.
+  overlay.style.height = Math.max(
+    getDocumentHeight(),
+    top + maxHeight + 80,
+    (hasParentMetrics ? parentScrollTop + vh + 80 : vh + 80)
+  ) + "px";
+}
 function resetTimeFilterForSearch() {
   if (!showFiltered) return;
 
@@ -1273,19 +1320,33 @@ function resetTimeFilterForSearch() {
     if (activeTabId) render(activeTabId);
   }
 }
-function openSearch() {
+function openSearch(ev) {
   resetTimeFilterForSearch();
+
   const overlay = document.getElementById("searchOverlay");
   const input   = document.getElementById("searchInput");
   if (!overlay || !input) return;
+
+  searchOverlayAnchorEl = ev && ev.currentTarget
+    ? ev.currentTarget
+    : document.getElementById("searchOpenBtn");
+
   overlay.style.display = "block";
   renderSearchResults();
-  positionSearchOverlay();
-  requestParentMetrics(positionSearchOverlay);
-  // Focus after the overlay is painted so mobile keyboards open reliably.
-  setTimeout(() => { input.focus(); input.select(); }, 30);
-}
 
+  positionSearchOverlay(searchOverlayAnchorEl);
+  requestParentMetrics(() => positionSearchOverlay(searchOverlayAnchorEl));
+
+  // Run one more frame after layout changes from speaker/session view have settled.
+  window.requestAnimationFrame(() => positionSearchOverlay(searchOverlayAnchorEl));
+
+  // Focus after the overlay is painted so mobile keyboards open reliably.
+  setTimeout(() => {
+    positionSearchOverlay(searchOverlayAnchorEl);
+    input.focus();
+    input.select();
+  }, 30);
+}
 function closeSearch() {
   const overlay = document.getElementById("searchOverlay");
   if (!overlay) return;
@@ -2572,7 +2633,7 @@ document.getElementById("speakerViewBtn").addEventListener("click", toggleSpeake
 document.getElementById("downloadPdfBtn").addEventListener("click", downloadAgendaPDF);
 
 // ─── SEARCH LISTENERS ─────────────────────────────────────────────────────────
-document.getElementById("searchOpenBtn").addEventListener("click", openSearch);
+document.getElementById("searchOpenBtn").addEventListener("click", ev => openSearch(ev));
 document.getElementById("searchInput").addEventListener("input", renderSearchResults);
 document.getElementById("searchResults").addEventListener("click", e => {
   const btn = e.target.closest(".searchResult");

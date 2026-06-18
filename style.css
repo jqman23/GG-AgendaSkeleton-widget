@@ -1470,6 +1470,12 @@ body {
   .spCards { grid-template-columns: repeat(3, 1fr); }
   .spControls { gap: 10px; }
 
+
+  .searchModal {
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+  }
+
   /* Modals: trim padding so they fit small screens */
   .spModal { padding: 20px 18px 18px; border-radius: 16px; }
   .li-modal {

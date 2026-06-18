@@ -1,4 +1,4 @@
-// ─── CALENDAR SVG ICONS ──────────────────────────────────────────────────────
+﻿// ─── CALENDAR SVG ICONS ──────────────────────────────────────────────────────
 // Using Google's favicon service (stable) and Microsoft's CDN icon (stable)
 const SVG_GCAL    = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/18455c8f54504314847defa08b8dcda2.png" width="16" height="16" alt="Google Calendar" style="display:block;">`;
 const SVG_OUTLOOK = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/17c86dcff13d41a386d3607a4f6fd948.png" width="16" height="16" alt="Outlook Calendar" style="display:block;">`;
@@ -24,7 +24,6 @@ const data = {
     ["2026-10-06", "09:00", "2026-10-06", "12:30", ["skill"]],
     ["2026-10-06", "11:00", "2026-10-06", "14:30", ["skill"]],
     ["2026-10-06", "13:00", "2026-10-06", "16:30", ["skill"]],
-    ["2026-10-06", "19:00", "2026-10-06", "22:30", ["skill"]]
   ],
   day2: [
     ["2026-10-07", "03:00", "2026-10-07", "04:00", ["workshop"]],
@@ -2031,3 +2030,4 @@ if ("MutationObserver" in window) {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 render("day1");
+

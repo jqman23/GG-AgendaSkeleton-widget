@@ -1382,30 +1382,59 @@ function positionLinkedInOverlay(anchorEl) {
   if (!overlay) return;
 
   const modal = overlay.querySelector(".li-modal");
-  overlay.style.height = getDocumentHeight() + "px";
+  if (!modal) return;
+
+  const docH = getDocumentHeight();
+  overlay.style.height = docH + "px";
 
   const vh = (hasParentMetrics && parentViewportH)
     ? parentViewportH
     : (window.parent === window ? window.innerHeight : 640);
 
-  if (modal) modal.style.maxHeight = Math.max(240, vh - 40) + "px";
+  modal.style.maxHeight = Math.max(240, vh - 40) + "px";
 
-  let anchorY;
-  if (hasParentMetrics) {
-    anchorY = parentScrollTop + vh / 2;
-  } else {
-    const effectiveAnchor = anchorEl || linkedInOverlayAnchorEl;
-    if (effectiveAnchor) {
-      const r = effectiveAnchor.getBoundingClientRect();
-      anchorY = r.top + r.height / 2;
-    } else {
-      anchorY = window.scrollY + window.innerHeight / 2;
+  // Anchor to the clicked Share button first.
+  // Parent viewport metrics are only used to keep it visible, not to recenter it far away.
+  const effectiveAnchor = anchorEl || linkedInOverlayAnchorEl;
+
+  if (effectiveAnchor) {
+    const r = effectiveAnchor.getBoundingClientRect();
+    const modalW = modal.offsetWidth || Math.min(480, window.innerWidth * 0.92);
+    const modalH = modal.offsetHeight || 360;
+
+    const visibleTop = hasParentMetrics ? parentScrollTop : 0;
+    const visibleBottom = hasParentMetrics ? parentScrollTop + vh : docH;
+
+    let top = r.bottom + 12;
+
+    // If opening below the Share button would run off the visible screen, open above it.
+    if (top + modalH > visibleBottom - 12) {
+      top = r.top - modalH - 12;
     }
+
+    // If above would be too high, clamp inside the visible part of the iframe.
+    if (top < visibleTop + 12) {
+      top = visibleTop + 12;
+    }
+
+    let left = r.left + r.width / 2;
+    const minLeft = modalW / 2 + 12;
+    const maxLeft = Math.max(minLeft, window.innerWidth - modalW / 2 - 12);
+    left = Math.min(Math.max(left, minLeft), maxLeft);
+
+    modal.style.left = left + "px";
+    modal.style.top = top + "px";
+    modal.style.transform = "translateX(-50%)";
+  } else {
+    const top = (hasParentMetrics ? parentScrollTop : window.scrollY) + vh / 2;
+    modal.style.left = "50%";
+    modal.style.top = top + "px";
+    modal.style.transform = "translate(-50%, -50%)";
   }
 
-  if (modal) modal.style.top = anchorY + "px";
   if (anchorEl) linkedInOverlayAnchorEl = anchorEl;
 }
+
 // ─── LINKEDIN SHARE ───────────────────────────────────────────────────────────
 // Opens a modal with an editable, pre-written LinkedIn post for the session.
 // LinkedIn's public share URL can't pre-fill post body text, so we let the user

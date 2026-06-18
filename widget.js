@@ -72,6 +72,92 @@ if (typeof sessionsByBlock !== "undefined") {
   }
 }
 
+// ─── TAB GROUPS ───────────────────────────────────────────────────────────────
+// Two kinds of content:
+//   • Skill Building Institutes (day1) — always live on ONE dedicated tab, even
+//     if the selected timezone splits them across two calendar dates. That tab's
+//     label becomes a date range (e.g. "Oct 6/7 • Skill Building Institutes").
+//   • The Global Gathering (day2 + day3) — sessions are filed onto the tab that
+//     matches their LOCAL START DATE in the selected timezone. Tabs are generated
+//     dynamically: one per distinct local date, in chronological order. So a
+//     far-east timezone may add an "Oct 9" tab, and a far-west one may merge two
+//     event days onto a single date.
+const INSTITUTE_BLOCKS = (data.day1 || []).slice();
+const GG_BLOCKS        = [...(data.day2 || []), ...(data.day3 || [])];
+
+// Format a "YYYY-MM-DD" string as "Oct 6" (parsed as a fixed wall-clock date,
+// independent of the viewer's machine timezone).
+function formatTabDate(dateStr) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short", day: "numeric", timeZone: "UTC"
+  }).format(new Date(dateStr + "T12:00:00Z"));
+}
+
+// Compact range label for the Institutes tab: "Oct 6", "Oct 6/7", or, across a
+// month boundary, "Oct 31/Nov 1".
+function formatTabDateRange(dateStrs) {
+  const sorted = [...new Set(dateStrs)].sort();
+  if (sorted.length === 1) return formatTabDate(sorted[0]);
+  const months = new Set(sorted.map(d => d.slice(0, 7)));
+  if (months.size === 1) {
+    const month = formatTabDate(sorted[0]).split(" ")[0];
+    const days  = sorted.map(d => formatTabDate(d).split(" ")[1]);
+    return `${month} ${days.join("/")}`;
+  }
+  return sorted.map(formatTabDate).join("/");
+}
+
+// Build the ordered list of tab descriptors for a given timezone.
+// Each: { id, kind:"institute"|"gg", date, label, blocks:[...] }.
+function computeTabs(zone) {
+  const tabs = [];
+
+  // Institutes tab — always present, always leftmost.
+  if (INSTITUTE_BLOCKS.length) {
+    const localDates = INSTITUTE_BLOCKS.map(([sd, st]) =>
+      getLocalDateString(easternToUtc(sd, st), zone));
+    tabs.push({
+      id:     "institute",
+      kind:   "institute",
+      date:   localDates.slice().sort()[0],
+      label:  `${formatTabDateRange(localDates)} • Skill Building Institutes`,
+      blocks: INSTITUTE_BLOCKS.slice().sort((a, b) =>
+        easternToUtc(a[0], a[1]) - easternToUtc(b[0], b[1]))
+    });
+  }
+
+  // Global Gathering — bucket by local start date.
+  const byDate = new Map();
+  for (const block of GG_BLOCKS) {
+    const localDate = getLocalDateString(easternToUtc(block[0], block[1]), zone);
+    if (!byDate.has(localDate)) byDate.set(localDate, []);
+    byDate.get(localDate).push(block);
+  }
+  [...byDate.keys()].sort().forEach(date => {
+    tabs.push({
+      id:     "gg|" + date,
+      kind:   "gg",
+      date,
+      label:  `${formatTabDate(date)} • The Global Gathering`,
+      blocks: byDate.get(date).sort((a, b) =>
+        easternToUtc(a[0], a[1]) - easternToUtc(b[0], b[1]))
+    });
+  });
+
+  return tabs;
+}
+
+// Returns the tab id that owns a given "date|time" block key in the current set.
+function tabIdForBlockKey(blockKey) {
+  for (const tab of currentTabs) {
+    if (tab.blocks.some(b => `${b[0]}|${b[1]}` === blockKey)) return tab.id;
+  }
+  return null;
+}
+
+let currentTabs = [];
+let activeTabId = null;
+
 // ─── SESSION TYPE LABELS ──────────────────────────────────────────────────────
 function getSessionLabel(type) {
   const labels = {
@@ -260,46 +346,19 @@ function formatInTimezone(dateObj, timezone) {
 }
 
 // ─── TIME LABEL BUILDER ───────────────────────────────────────────────────────
-// Compares session start/end local dates against the official event anchor date
-// so "previous day" and "next day" are always relative to the event calendar day,
-// not just relative to each other.
-function buildTimeLabel(startUtc, endUtc, timezone, day) {
+// Sessions are filed onto the tab matching their LOCAL START DATE, so a block
+// always starts on its tab's date. The only qualifier we ever need is when the
+// session's local END date falls on the following day ("ends next day").
+function buildTimeLabel(startUtc, endUtc, timezone) {
   const startDateStr = getLocalDateString(startUtc, timezone);
   const endDateStr   = getLocalDateString(endUtc, timezone);
   const startTimeStr = formatInTimezone(startUtc, timezone);
   const endTimeStr   = formatInTimezone(endUtc, timezone);
 
-  // The canonical event date for each day — fixed, not derived from UTC conversion
-  const eventDateMap = {
-    day1: "2026-10-06",
-    day2: "2026-10-07",
-    day3: "2026-10-08"
-  };
-  const eventDateStr = eventDateMap[day];
-
-  const isSameDay = startDateStr === endDateStr;
-
-  if (isSameDay) {
-    if (startDateStr < eventDateStr) {
-      return `${startTimeStr} – ${endTimeStr} previous day`;
-    } else if (startDateStr > eventDateStr) {
-      return `${startTimeStr} – ${endTimeStr} next day`;
-    } else {
-      return `${startTimeStr} – ${endTimeStr}`;
-    }
-  } else if (startDateStr < endDateStr) {
-    // Crosses midnight locally
-    if (startDateStr < eventDateStr) {
-      // e.g. starts previous day, ends on event day
-      return `${startTimeStr} previous day – ${endTimeStr}`;
-    } else {
-      // e.g. starts on event day, ends next day
-      return `${startTimeStr} – ${endTimeStr} next day`;
-    }
-  } else {
-    // Should not occur, safe fallback
-    return `${startTimeStr} – ${endTimeStr}`;
+  if (startDateStr < endDateStr) {
+    return `${startTimeStr} – ${endTimeStr} next day`;
   }
+  return `${startTimeStr} – ${endTimeStr}`;
 }
 
 // ─── TIMEZONE ABBREVIATION MAP ────────────────────────────────────────────────
@@ -605,16 +664,9 @@ function buildSessionActualTimeHtml(s, blockKey) {
 
   if (!startDate || !startTime || !endDate || !endTime) return "";
 
-  const dayByDate = {
-    "2026-10-06": "day1",
-    "2026-10-07": "day2",
-    "2026-10-08": "day3"
-  };
-
   const startUtc = easternToUtc(startDate, startTime);
   const endUtc   = easternToUtc(endDate, endTime);
-  const day      = dayByDate[startDate] || dayByDate[blockStartDate] || "day1";
-  const label    = buildTimeLabel(startUtc, endUtc, timezoneSelect.value, day);
+  const label    = buildTimeLabel(startUtc, endUtc, timezoneSelect.value);
   const tzAbbr   = getTzAbbreviation(timezoneSelect.value);
 
   return `<div class="sessionActualTime">${esc(label)}${tzAbbr ? ` <span>${esc(tzAbbr)}</span>` : ""}</div>`;
@@ -807,32 +859,23 @@ function toggleSpeakerView() {
     expandControls.style.display = "";
     btn.classList.remove("active");
     if (filterBtn) { filterBtn.disabled = false; filterBtn.classList.remove("disabled"); }
-    const activeDay = document.querySelector(".dayBtn.active")?.dataset.day;
-    if (activeDay === "day1") skillNote.style.display = "";
+    // Re-highlight the active tab and restore the Institutes note if applicable
+    setActiveTab(activeTabId);
   }
   queueWidgetHeightPost();
 }
 
 function navigateToSession(blockKey, sessionCode) {
   closeSpeakerModal();
-  // Find which day owns this block
-  const [blockDate, blockTime] = blockKey.split("|");
-  let targetDay = null;
-  for (const [day, blocks] of Object.entries(data)) {
-    for (const [sd, st] of blocks) {
-      if (sd === blockDate && st === blockTime) { targetDay = day; break; }
-    }
-    if (targetDay) break;
-  }
-  if (!targetDay) return;
+  // Find which tab owns this block in the current (timezone-dependent) tab set
+  const targetTab = tabIdForBlockKey(blockKey);
+  if (!targetTab) return;
 
   // Switch out of speaker view
   if (inSpeakerView) toggleSpeakerView();
 
   // Switch to correct day tab
-  document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
-  document.querySelector(`.dayBtn[data-day="${targetDay}"]`).classList.add("active");
-  render(targetDay);
+  setActiveTab(targetTab);
 
   // Find and open the block, then highlight the session card
   requestAnimationFrame(() => {
@@ -901,8 +944,6 @@ function navigateToSpeakerTile(name) {
 // ─── SEARCH ───────────────────────────────────────────────────────────────────
 // A global typeahead popup over all sessions and speakers. Selecting a result
 // jumps to that session; selecting a speaker shows more info inside search.
-const SEARCH_DAY_BY_DATE  = { "2026-10-06": "day1", "2026-10-07": "day2", "2026-10-08": "day3" };
-const SEARCH_DAY_SHORT    = { day1: "Oct 6", day2: "Oct 7", day3: "Oct 8" };
 let _searchIndex = null;
 
 function getSearchIndex() {
@@ -931,13 +972,14 @@ function getSearchIndex() {
 }
 
 function searchDateTimeLabel(blockKey) {
-  const date = blockKey.split("|")[0];
-  const day  = SEARCH_DAY_BY_DATE[date];
   const info = blockTimeMap[blockKey];
-  if (!info) return SEARCH_DAY_SHORT[day] || "";
+  if (!info) return "";
   const startUtc = easternToUtc(info[0], info[1]);
   const endUtc   = easternToUtc(info[0], info[3]);
-  return (SEARCH_DAY_SHORT[day] || "") + " · " + buildTimeLabel(startUtc, endUtc, timezoneSelect.value, day);
+  // Date prefix reflects the local start date in the selected timezone, matching
+  // the day tab the session now lives on.
+  const localDate = getLocalDateString(startUtc, timezoneSelect.value);
+  return formatTabDate(localDate) + " · " + buildTimeLabel(startUtc, endUtc, timezoneSelect.value);
 }
 
 function runSearch(query) {
@@ -1050,8 +1092,7 @@ function resetTimeFilterForSearch() {
   }
 
   if (!inSpeakerView) {
-    const activeDay = document.querySelector(".dayBtn.active")?.dataset.day;
-    if (activeDay) render(activeDay);
+    if (activeTabId) render(activeTabId);
   }
 }
 function openSearch() {
@@ -1569,11 +1610,6 @@ function togglePanel(blockWrap, forceOpen) {
 // time-column grid, colored type pills with icons, per-session speakers and
 // full descriptions.
 
-const PDF_DAY_META = {
-  day1: { label: "Skill Building Institutes", date: "2026-10-06" },
-  day2: { label: "The Global Gathering",      date: "2026-10-07" },
-  day3: { label: "The Global Gathering",      date: "2026-10-08" }
-};
 
 // Hosted cover page (letter, 612×792pt). It becomes page 1 of the export, with
 // the timezone note drawn on top in Montserrat, white, anchored bottom-right.
@@ -1661,18 +1697,27 @@ function buildAgendaPdfDoc(selectedZone) {
   const tzNote = tzAbbr ? `All times shown in ${tzAbbr}` : "Times shown in your selected time zone";
   const generated = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
-  const daysHtml = Object.entries(PDF_DAY_META).map(([day, meta]) => {
-    const dateObj = new Date(meta.date + "T12:00:00");
-    const dateLabel = dateObj.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+  // Mirror the on-screen tabs: Institutes on one section (date range), and the
+  // Global Gathering split into one section per local date in the selected zone.
+  const longDate = d => new Date(d + "T12:00:00")
+    .toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+
+  const daysHtml = computeTabs(selectedZone).map(tab => {
+    const meta = tab.kind === "institute"
+      ? { label: "Skill Building Institutes" }
+      : { label: "The Global Gathering" };
+    const dates = [...new Set(tab.blocks.map(b =>
+      getLocalDateString(easternToUtc(b[0], b[1]), selectedZone)))].sort();
+    const dateLabel = dates.map(longDate).join("  /  ");
 
     const rows = [];
-    (data[day] || []).forEach(([sd, st, ed, et, types]) => {
+    tab.blocks.forEach(([sd, st, ed, et, types]) => {
       const blockKey = `${sd}|${st}`;
       const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
 
       if (isTbdBlock(blockKey)) {
         const startUtc = easternToUtc(sd, st), endUtc = easternToUtc(ed, et);
-        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, day);
+        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone);
         rows.push(`<article class="aRow">
           <div class="aTime">${pdfEsc(timeLabel)}${tzAbbr ? `<div class="aTz">${tzAbbr}</div>` : ""}</div>
           <div class="aMain">
@@ -1687,7 +1732,7 @@ function buildAgendaPdfDoc(selectedZone) {
         const sType = s.type || (types && types[0]) || "workshop";
         const startUtc = easternToUtc(sd, st);
         const endUtc   = easternToUtc(sd, s.endTime || et);
-        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, day);
+        const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone);
         const themeIcon = PDF_THEME_ICON[(s.theme || "").trim()];
         const themeHtml = s.theme
           ? `<div class="aTheme"><span>${pdfEsc(s.theme)}</span>${themeIcon ? `<img class="aThemeIcon" src="${themeIcon}" crossorigin="anonymous" alt="">` : ""}</div>`
@@ -1705,9 +1750,9 @@ function buildAgendaPdfDoc(selectedZone) {
       });
     });
 
-    // Day-1 ("Skill Building Institutes") label links out to the info page; the
-    // clickable annotation is added after rasterization (see mergeCoverAndAgenda).
-    const labelHtml = day === "day1"
+    // The Institutes label links out to the info page; the clickable annotation
+    // is added after rasterization (see mergeCoverAndAgenda).
+    const labelHtml = tab.kind === "institute"
       ? `<span id="aSkillLink" class="aDayLink">${pdfEsc(meta.label)}<span class="aDayLinkIcon">&#8599;</span></span>`
       : `<span>${pdfEsc(meta.label)}</span>`;
 
@@ -1931,7 +1976,7 @@ function downloadAgendaPDF() {
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
-function render(day) {
+function render(tabId) {
   const grid         = document.getElementById("agendaGrid");
   const selectedZone = timezoneSelect.value;
   grid.innerHTML     = "";
@@ -1940,10 +1985,13 @@ function render(day) {
   const toggleBtn = document.getElementById("toggleAllBtn");
   if (toggleBtn) toggleBtn.textContent = "Expand all";
 
-  const skillNote = document.getElementById("skillNote");
-  skillNote.style.display = day === "day1" ? "" : "none";
+  const tab = currentTabs.find(t => t.id === tabId) || currentTabs[0];
+  if (!tab) return;
 
-  data[day].forEach(([startDate, startTime, endDate, endTime, types]) => {
+  const skillNote = document.getElementById("skillNote");
+  skillNote.style.display = tab.kind === "institute" ? "" : "none";
+
+  tab.blocks.forEach(([startDate, startTime, endDate, endTime, types]) => {
     const startUtc = easternToUtc(startDate, startTime);
     const endUtc   = easternToUtc(endDate, endTime);
 
@@ -1954,7 +2002,7 @@ function render(day) {
     const comfortable = category === "daytime";
     const neutral     = category === "neutral";
 
-    const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, day);
+    const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone);
     const tzAbbr    = getTzAbbreviation(selectedZone);
     const primary   = types[0];
     const blockKey  = `${startDate}|${startTime}`;
@@ -2001,28 +2049,64 @@ function render(day) {
   queueWidgetHeightPost();
 }
 
-// ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
-document.querySelectorAll(".dayBtn").forEach(btn => {
-  btn.addEventListener("click", () => {
-    // Exit speaker view if active
-    if (inSpeakerView) {
-      inSpeakerView = false;
-      document.getElementById("speakerGrid").style.display = "none";
-      document.getElementById("agendaGrid").style.display = "";
-      document.getElementById("expandControls").style.display = "";
-      document.getElementById("speakerViewBtn").classList.remove("active");
-      const fb = document.querySelector(".filterToggle button");
-      if (fb) { fb.disabled = false; fb.classList.remove("disabled"); }
-    }
-    document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
-    render(btn.dataset.day);
-  });
-});
+// ─── TAB BAR ──────────────────────────────────────────────────────────────────
+// Switch to a tab: highlight its button, render it, and (when leaving speaker
+// view) restore the agenda layout. Safe to call with a stale/missing id — it
+// falls back to the first available tab.
+function setActiveTab(tabId) {
+  const tab = currentTabs.find(t => t.id === tabId) || currentTabs[0];
+  if (!tab) return;
+  activeTabId = tab.id;
+  document.querySelectorAll(".dayBtn").forEach(b =>
+    b.classList.toggle("active", b.dataset.tab === tab.id));
 
+  if (!inSpeakerView) render(tab.id);
+}
+
+// (Re)build the tab buttons for the current timezone, preserving the user's
+// place where possible: stay on the Institutes tab if that was active, else try
+// to keep the same local date, else fall back to the first tab.
+function renderTabs() {
+  const zone = timezoneSelect.value;
+  const prevTab = currentTabs.find(t => t.id === activeTabId);
+  currentTabs = computeTabs(zone);
+
+  let nextId = currentTabs[0] && currentTabs[0].id;
+  if (prevTab) {
+    const match = currentTabs.find(t => t.id === prevTab.id)
+      || (prevTab.kind === "institute" && currentTabs.find(t => t.kind === "institute"))
+      || currentTabs.find(t => t.date === prevTab.date);
+    if (match) nextId = match.id;
+  }
+
+  const container = document.getElementById("dayBtns");
+  container.innerHTML = currentTabs.map(t =>
+    `<button class="dayBtn" data-tab="${t.id}">${t.label}</button>`).join("");
+  container.querySelectorAll(".dayBtn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      // Exit speaker view if active
+      if (inSpeakerView) {
+        inSpeakerView = false;
+        document.getElementById("speakerGrid").style.display = "none";
+        document.getElementById("agendaGrid").style.display = "";
+        document.getElementById("expandControls").style.display = "";
+        document.getElementById("speakerViewBtn").classList.remove("active");
+        const fb = document.querySelector(".filterToggle button");
+        if (fb) { fb.disabled = false; fb.classList.remove("disabled"); }
+      }
+      setActiveTab(btn.dataset.tab);
+    });
+  });
+
+  activeTabId = nextId;
+  if (!inSpeakerView) setActiveTab(nextId);
+  else document.querySelectorAll(".dayBtn").forEach(b => b.classList.remove("active"));
+}
+
+// ─── EVENT LISTENERS ──────────────────────────────────────────────────────────
 timezoneSelect.addEventListener("change", () => {
-  const activeDay = document.querySelector(".dayBtn.active").dataset.day;
-  render(activeDay);
+  // The local dates of sessions shift with the zone, so rebuild the whole tab set.
+  renderTabs();
 });
 
 const filterBtn = document.getElementById("timeFilterBtn");
@@ -2031,8 +2115,7 @@ filterBtn.addEventListener("click", () => {
   showFiltered = !showFiltered;
   filterBtn.classList.toggle("active");
   filterBtn.textContent = showFiltered ? "Showing daytime & evening hours" : "Show daytime & evening hours";
-  const activeDay = document.querySelector(".dayBtn.active").dataset.day;
-  render(activeDay);
+  if (activeTabId) render(activeTabId);
 });
 
 let allExpanded = false;
@@ -2094,5 +2177,5 @@ if ("MutationObserver" in window) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-render("day1");
+renderTabs();
 

@@ -43,6 +43,11 @@ body {
   gap: 10px;
   flex-wrap: wrap;
 }
+/* Dynamically generated day tabs live here; display:contents lets each button
+   participate directly in the .dayToggle flex row (gap + wrapping). */
+#dayBtns {
+  display: contents;
+}
 .dayBtn {
   border: none;
   padding: 10px 16px;
@@ -57,8 +62,8 @@ body {
   background: #122345;
   color: white;
 }
-/* Oct 6 skill button gets sage green when active */
-.dayBtn[data-day="day1"].active {
+/* Skill Building Institutes tab gets sage green when active */
+.dayBtn[data-tab="institute"].active {
   background: #bebe7b;
   color: #122345;
 }

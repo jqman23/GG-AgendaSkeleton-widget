@@ -1,4 +1,4 @@
-﻿const sessionsByBlock = {
+const sessionsByBlock = {
   "2026-10-06|03:00": [
     {
       name: "Family Group Decision Making: Practice Skills for Social Workers and Coordinators",
@@ -20,8 +20,8 @@
       type: "skill",
       theme: "Rights, Advocacy, and Family Power",
       endTime: "10:30",
-      tags: ["impacted person/lived expertise","power and control","child welfare practice","empowerment","family engagement","collaborative practices"],
-      description: "How do we create conditions where people whose voices are often overlooked can speak, be listened to, and genuinely influence what happens next? This immersive Skill Building Institute equips participants with practical, repeatable facilitation moves for shifting from “professional discourse” to shared dialogue that centres lived experience. Using short demonstrations, guided practice, and peer feedback, participants will rehearse ways to build trust, reduce defensiveness, and address power dynamics in real time—without losing clarity, safety, or purpose.",
+      tags: ["Family Leadership","Helpful Filtering","Widening the Circle","Facilitation Practice"],
+      description: "Family-led decision making depends on a delicate balance: holding space for families to shape the meeting and lead the plan, without the process drifting into something that does not reflect them. In practice, professionals often want to “help” by shaping who is invited and what gets discussed, which can become “helpful filtering.” Add the challenge of widening the circle when some family members have been quietly ruled out, and it can be easy to end up with only the “safe” or “easy” voices present. This Skill Building Institute is built around real examples participants are currently struggling with. Participants will use those dilemmas as a leaping off point, then work through a simple preparation process and rehearse practical facilitation strategies that protect family leadership and help professionals stay engaged and on board with the plan that emerges.",
       speakers: [
         { name: "Sharon Inglis", title: "Director", org: "Circles Training & Consultancy Ltd", bio: "25+ years specializing in family group conferences and restorative approaches. Supports children's services in making the shift from procedural practice to true partnership.", photo: "https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/fb537cda9e16421abe5e3946c5057638.jpg" }
       ]

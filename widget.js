@@ -495,10 +495,29 @@ if (!allZones.includes(browserZone)) allZones.push(browserZone);
 
 const sortedZones = allZones.slice().sort((a, b) => getUtcOffsetMinutes(a) - getUtcOffsetMinutes(b));
 
-const orderedZones = [
-  browserZone,
-  ...sortedZones.filter(z => z !== browserZone)
+// Pinned to the top after the detected zone, in this exact order. Everything
+// not listed here falls below, sorted earliest → latest by UTC offset.
+const ANCHOR_ZONES = [
+  "America/Los_Angeles", // Pacific
+  "America/Denver",      // Mountain
+  "America/Chicago",     // Central
+  "America/New_York",    // Eastern
+  "Europe/London",       // London
+  "Australia/Perth", "Australia/Brisbane", "Australia/Adelaide", "Australia/Sydney",
+  "Pacific/Auckland"     // New Zealand
 ];
+
+const orderedZones = [];
+const placedZones  = new Set();
+const pushZone = z => {
+  if (z && !placedZones.has(z) && allZones.includes(z)) {
+    placedZones.add(z);
+    orderedZones.push(z);
+  }
+};
+pushZone(browserZone);          // detected zone always first
+ANCHOR_ZONES.forEach(pushZone); // then the pinned anchors
+sortedZones.forEach(pushZone);  // then the rest, earliest → latest
 
 const tzFlags = {
   "America/New_York":               "🇺🇸",

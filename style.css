@@ -491,13 +491,26 @@ body {
 }
 .linkedin-btn:hover { color: #0A66C2; }
 .li-modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-  display: flex; align-items: center; justify-content: center;
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  min-height: 100%;
+  background: rgba(0,0,0,0.45);
   z-index: 99999;
 }
 .li-modal {
-  background: #fff; border-radius: 12px; padding: 24px;
-  width: min(480px, 92vw); box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  width: min(480px, 92vw);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.22);
   font-family: "Montserrat", sans-serif;
 }
 .li-modal-header {

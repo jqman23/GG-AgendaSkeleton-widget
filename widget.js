@@ -1,4 +1,4 @@
-﻿// ─── CALENDAR SVG ICONS ──────────────────────────────────────────────────────
+// ─── CALENDAR SVG ICONS ──────────────────────────────────────────────────────
 // Using Google's favicon service (stable) and Microsoft's CDN icon (stable)
 const SVG_GCAL    = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/18455c8f54504314847defa08b8dcda2.png" width="16" height="16" alt="Google Calendar" style="display:block;">`;
 const SVG_OUTLOOK = `<img src="https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/17c86dcff13d41a386d3607a4f6fd948.png" width="16" height="16" alt="Outlook Calendar" style="display:block;">`;
@@ -151,6 +151,7 @@ window.addEventListener("message", function(e) {
 
   positionModalOverlay(modalAnchorEl); // keep an open modal pinned while scrolling
   positionSearchOverlay();             // keep the search popup pinned too
+  positionLinkedInOverlay();           // keep the share popup pinned too
 });
 
 // Position the speaker modal. The dark backdrop covers the whole widget document;
@@ -1309,7 +1310,7 @@ function buildSessionsHTML(blockKey) {
       ${sessions.map(s => {
         const descId = `desc-${esc(s.code)}`;
         const calLinks = buildCalUrls(s, blockKey);
-        const shareBtnHtml = `<button class="linkedin-btn" onclick="event.stopPropagation();shareLinkedIn('${esc(s.code)}')" title="Share on LinkedIn">${SVG_LINKEDIN}Share</button>`;
+        const shareBtnHtml = `<button class="linkedin-btn" onclick="event.stopPropagation();shareLinkedIn('${esc(s.code)}', this)" title="Share on LinkedIn">${SVG_LINKEDIN}Share</button>`;
         const calBtnsHtml = `<div class="calBtns">
           ${calLinks ? `<a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Add to Google Calendar">${SVG_GCAL}</a>
           <a class="calBtn calOutlook" href="${esc(calLinks.outlook)}" target="_blank" rel="noopener" title="Add to Outlook Calendar">${SVG_OUTLOOK}</a>
@@ -1373,11 +1374,43 @@ function toggleDesc(btn, descId) {
   queueWidgetHeightPost();
 }
 
+
+let linkedInOverlayAnchorEl = null;
+
+function positionLinkedInOverlay(anchorEl) {
+  const overlay = document.querySelector(".li-modal-overlay");
+  if (!overlay) return;
+
+  const modal = overlay.querySelector(".li-modal");
+  overlay.style.height = getDocumentHeight() + "px";
+
+  const vh = (hasParentMetrics && parentViewportH)
+    ? parentViewportH
+    : (window.parent === window ? window.innerHeight : 640);
+
+  if (modal) modal.style.maxHeight = Math.max(240, vh - 40) + "px";
+
+  let anchorY;
+  if (hasParentMetrics) {
+    anchorY = parentScrollTop + vh / 2;
+  } else {
+    const effectiveAnchor = anchorEl || linkedInOverlayAnchorEl;
+    if (effectiveAnchor) {
+      const r = effectiveAnchor.getBoundingClientRect();
+      anchorY = r.top + r.height / 2;
+    } else {
+      anchorY = window.scrollY + window.innerHeight / 2;
+    }
+  }
+
+  if (modal) modal.style.top = anchorY + "px";
+  if (anchorEl) linkedInOverlayAnchorEl = anchorEl;
+}
 // ─── LINKEDIN SHARE ───────────────────────────────────────────────────────────
 // Opens a modal with an editable, pre-written LinkedIn post for the session.
 // LinkedIn's public share URL can't pre-fill post body text, so we let the user
 // copy the text and open LinkedIn's composer with the event URL attached.
-function shareLinkedIn(code) {
+function shareLinkedIn(code, triggerEl) {
   const s = (typeof sessionMap !== "undefined" && sessionMap[code]) || null;
   if (!s) return;
 
@@ -1425,6 +1458,9 @@ function shareLinkedIn(code) {
       </div>
     </div>`;
   document.body.appendChild(overlay);
+  linkedInOverlayAnchorEl = triggerEl || null;
+  positionLinkedInOverlay(triggerEl || null);
+  requestParentMetrics(positionLinkedInOverlay);
 
   const ta       = overlay.querySelector("#li-post-text");
   const copyBtn  = overlay.querySelector("#li-copy-btn");
@@ -1432,7 +1468,7 @@ function shareLinkedIn(code) {
   const closeBtn = overlay.querySelector("#li-close-btn");
   ta.value = post; // set via value (not innerHTML) so special chars are safe
 
-  const doClose = () => { try { document.body.removeChild(overlay); } catch (e) {} document.removeEventListener("keydown", onKey); };
+  const doClose = () => { try { document.body.removeChild(overlay); } catch (e) {} linkedInOverlayAnchorEl = null; document.removeEventListener("keydown", onKey); };
   const onKey = e => { if (e.key === "Escape") doClose(); };
   document.addEventListener("keydown", onKey);
   overlay.addEventListener("click", e => { if (e.target === overlay) doClose(); });

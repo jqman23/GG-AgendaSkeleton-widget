@@ -1028,6 +1028,19 @@ body {
 .spModalSession:last-child { margin-bottom: 0; }
 .spModalSession:hover { background: rgba(190,190,123,0.25); }
 
+/* Mobile session-overview popup (shown when a speaker-modal session is tapped).
+   Reuses the agenda session card, dropped into the modal as a single card. */
+.sessionOverview { margin-top: 2px; }
+.sessionOverview .sessionCard {
+  border-color: rgba(18,35,69,0.10);
+  cursor: default;
+}
+.sessionOverview .sessionCard:hover {
+  box-shadow: none;
+  border-color: rgba(18,35,69,0.10);
+}
+.sessionOverview .sessionDesc { -webkit-line-clamp: 6; }
+
 /* ── Search popup ───────────────────────────────────────────── */
 .searchOverlay {
   display: none;

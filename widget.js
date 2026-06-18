@@ -839,7 +839,16 @@ function setSpeakerSort(dir) {
   queueWidgetHeightPost();
 }
 
-function openSpeakerModal(slug, ev) {
+// True when the widget is rendered at the mobile breakpoint (matches the CSS).
+function isMobileView() {
+  return !!(window.matchMedia && window.matchMedia("(max-width: 700px)").matches);
+}
+
+let speakerModalSlug = null; // slug of the speaker currently shown in the modal
+
+// Renders just the speaker's bio + session list into the modal body. Split out
+// so the "back" button of the mobile session-overview can restore it in place.
+function renderSpeakerModalBody(slug) {
   const sp = cachedSpeakers.find(s => speakerSlug(s.name) === slug);
   if (!sp) return;
   const initials = sp.name.split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
@@ -848,7 +857,7 @@ function openSpeakerModal(slug, ev) {
     : `<div class="spModalInitials">${initials}</div>`;
 
   const sessionButtons = sp.sessions.map(sess =>
-    `<button class="spModalSession" onclick="navigateToSession('${esc(sess.blockKey)}','${esc(sess.code)}')">${esc(sess.name)}</button>`
+    `<button class="spModalSession" onclick="onSpeakerSessionClick('${esc(sess.blockKey)}','${esc(sess.code)}', event)">${esc(sess.name)}</button>`
   ).join("");
 
   document.getElementById("spModalBody").innerHTML = `
@@ -863,6 +872,13 @@ function openSpeakerModal(slug, ev) {
     ${sp.bio ? `<p class="spModalBio">${esc(sp.bio)}</p>` : ""}
     ${sp.sessions.length ? `<div class="spModalSessionsLabel">Sessions</div>${sessionButtons}` : ""}
   `;
+}
+
+function openSpeakerModal(slug, ev) {
+  const sp = cachedSpeakers.find(s => speakerSlug(s.name) === slug);
+  if (!sp) return;
+  speakerModalSlug = slug;
+  renderSpeakerModalBody(slug);
 
   const overlay = document.getElementById("spModalOverlay");
   overlay.style.display = "block";
@@ -877,6 +893,38 @@ function openSpeakerModal(slug, ev) {
   positionModalOverlay(anchorEl);
   // Ask the parent for fresh viewport metrics in case nothing has scrolled yet;
   // the response arrives via postMessage and re-runs positionModalOverlay().
+  requestParentMetrics();
+  queueWidgetHeightPost();
+}
+
+// Speaker-modal session click. On mobile, navigating into the agenda doesn't
+// work well inside the embedded iframe (the parent controls scrolling), so show
+// a read-only session overview popup instead. Desktop keeps navigation.
+function onSpeakerSessionClick(blockKey, code, ev) {
+  if (ev) ev.stopPropagation();
+  if (isMobileView()) showSessionOverviewInModal(blockKey, code);
+  else navigateToSession(blockKey, code);
+}
+
+function showSessionOverviewInModal(blockKey, code) {
+  const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
+  const s = sessions.find(x => String(x.code) === String(code));
+  if (!s) { navigateToSession(blockKey, code); return; }
+
+  document.getElementById("spModalBody").innerHTML = `
+    <button class="searchBackBtn" onclick="reopenSpeakerModalBody()">&#8592; Back to speaker</button>
+    <div class="spModalSessionsLabel">Session overview</div>
+    <div class="sessionOverview">${buildSessionCardHTML(s, blockKey, "ov-")}</div>
+  `;
+  positionModalOverlay(null);
+  requestParentMetrics();
+  queueWidgetHeightPost();
+}
+
+function reopenSpeakerModalBody() {
+  if (!speakerModalSlug) return;
+  renderSpeakerModalBody(speakerModalSlug);
+  positionModalOverlay(null);
   requestParentMetrics();
   queueWidgetHeightPost();
 }
@@ -1408,26 +1456,24 @@ function buildTbdPanelHTML() {
   </div>`;
 }
 
-function buildSessionsHTML(blockKey) {
-  const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
-  if (!sessions.length) return "";
-
-  return `<div class="sessionPanel" hidden>
-    <div class="sessionGrid">
-      ${sessions.map(s => {
-        const descId = `desc-${esc(s.code)}`;
-        const calLinks = buildCalUrls(s, blockKey);
-        const shareBtnHtml = `<button class="linkedin-btn" onclick="event.stopPropagation();shareLinkedIn('${esc(s.code)}', this)" title="Share on LinkedIn">${SVG_LINKEDIN}Share</button>`;
-        const calBtnsHtml = `<div class="calBtns">
-          ${calLinks ? `<a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Add to Google Calendar">${SVG_GCAL}</a>
-          <a class="calBtn calOutlook" href="${esc(calLinks.outlook)}" target="_blank" rel="noopener" title="Add to Outlook Calendar">${SVG_OUTLOOK}</a>
-          <button class="calBtn calIcs" onclick="event.stopPropagation();downloadICS('${esc(s.code)}')" title="Download .ics">&#8595;</button>` : ""}
-          ${shareBtnHtml}
-        </div>`;
-        const tagsHtml = (s.tags && s.tags.length)
-          ? `<div class="sessionTagLine">${s.tags.map(t => esc(t)).join(" · ")}</div>`
-          : "";
-        return `
+// Builds one session card. idPrefix keeps the description element id unique when
+// the same card is rendered outside the agenda grid (e.g. the mobile session
+// overview popup), so the "View full details" toggle targets the right copy.
+function buildSessionCardHTML(s, blockKey, idPrefix) {
+  idPrefix = idPrefix || "";
+  const descId = `${idPrefix}desc-${esc(s.code)}`;
+  const calLinks = buildCalUrls(s, blockKey);
+  const shareBtnHtml = `<button class="linkedin-btn" onclick="event.stopPropagation();shareLinkedIn('${esc(s.code)}', this)" title="Share on LinkedIn">${SVG_LINKEDIN}Share</button>`;
+  const calBtnsHtml = `<div class="calBtns">
+    ${calLinks ? `<a class="calBtn calGcal" href="${esc(calLinks.gcal)}" target="_blank" rel="noopener" title="Add to Google Calendar">${SVG_GCAL}</a>
+    <a class="calBtn calOutlook" href="${esc(calLinks.outlook)}" target="_blank" rel="noopener" title="Add to Outlook Calendar">${SVG_OUTLOOK}</a>
+    <button class="calBtn calIcs" onclick="event.stopPropagation();downloadICS('${esc(s.code)}')" title="Download .ics">&#8595;</button>` : ""}
+    ${shareBtnHtml}
+  </div>`;
+  const tagsHtml = (s.tags && s.tags.length)
+    ? `<div class="sessionTagLine">${s.tags.map(t => esc(t)).join(" · ")}</div>`
+    : "";
+  return `
         <div class="sessionCard" data-code="${esc(s.code)}">
           <div class="sessionTags">
             ${s.theme ? `<span class="sessionTheme">${esc(s.theme)}</span>` : ""}
@@ -1458,7 +1504,15 @@ function buildSessionsHTML(blockKey) {
               }).join("")}
             </div>` : ""}
         </div>`;
-      }).join("")}
+}
+
+function buildSessionsHTML(blockKey) {
+  const sessions = (typeof sessionsByBlock !== "undefined" && sessionsByBlock[blockKey]) || [];
+  if (!sessions.length) return "";
+
+  return `<div class="sessionPanel" hidden>
+    <div class="sessionGrid">
+      ${sessions.map(s => buildSessionCardHTML(s, blockKey)).join("")}
     </div>
   </div>`;
 }
@@ -1686,6 +1740,7 @@ const PDF_COVER_TZ_MARGIN = { right: 48, bottom: 44 }; // pt from the bottom-rig
 const PDFLIB_SRC     = "https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js";
 const FONTKIT_SRC    = "https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js";
 const MONTSERRAT_TTF = "https://cdn.jsdelivr.net/gh/JulietaUla/Montserrat/fonts/ttf/Montserrat-Regular.ttf";
+const HTML2CANVAS_SRC = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
 
 const PDF_TYPE_LABEL = {
   workshop: "Workshop",
@@ -2009,6 +2064,190 @@ async function mergeCoverAndAgenda(agendaBytes, tzNote, linkRect) {
   return coverDoc.save();
 }
 
+// ─── MOBILE PDF PATH ──────────────────────────────────────────────────────────
+// On phones/tablets the agenda (≈20 letter pages) is too tall to rasterize as
+// the single canvas html2pdf builds: at scale 2 it is ~1632×40000px, which blows
+// past iOS Safari's ~16.7-megapixel canvas-area cap and Android Chrome's
+// ~16384px max dimension, so the canvas comes back blank → blank PDF pages.
+// Instead we rasterize one canvas PER PAGE (each ≈1632×2112px, safely small) at
+// full scale, then assemble cover + pages with pdf-lib.
+
+// Touch / small-viewport devices where the giant single canvas fails. Desktop
+// (no coarse pointer, wider than a tablet) keeps the original html2pdf path.
+function isCanvasConstrained() {
+  return !!(window.matchMedia && (
+    window.matchMedia("(max-width: 820px)").matches ||
+    window.matchMedia("(pointer: coarse)").matches
+  ));
+}
+
+function buildMobileAgendaPdfBytes(selectedZone, tzNote, onProgress) {
+  const report = (done, total) => { try { onProgress && onProgress(done, total); } catch (e) {} };
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement("iframe");
+    iframe.style.cssText = "position:fixed;top:0;left:0;width:816px;height:1100px;border:none;opacity:0.01;pointer-events:none;z-index:-1;";
+    document.body.appendChild(iframe);
+    const cleanup = () => setTimeout(() => { try { document.body.removeChild(iframe); } catch (e) {} }, 1500);
+
+    const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+    iDoc.open();
+    iDoc.write(buildAgendaPdfDoc(selectedZone));
+    iDoc.close();
+
+    const imgEls = Array.from(iDoc.querySelectorAll("img"));
+    const imgReady = imgEls.map(img => img.complete
+      ? Promise.resolve()
+      : new Promise(r => { img.onload = r; img.onerror = r; }));
+
+    Promise.all(imgReady)
+      .then(() => new Promise(r => setTimeout(r, 400)))
+      .then(() => {
+        let linkRect = null;
+        const el = iDoc.getElementById("aSkillLink");
+        if (el) {
+          const r = el.getBoundingClientRect();
+          linkRect = { left: r.left, top: r.top, width: r.width, height: r.height };
+        }
+        return new Promise((res, rej) => {
+          const sc = iDoc.createElement("script");
+          sc.src = HTML2CANVAS_SRC;
+          sc.onload = () => res(linkRect);
+          sc.onerror = rej;
+          iDoc.head.appendChild(sc);
+        });
+      })
+      .then(async (linkRect) => {
+        const h2c = iframe.contentWindow.html2canvas;
+        const W = 816, SCALE = 1.5;                      // ≈144 DPI; keeps chunks small
+        const PX_PER_PT = W / 612;                       // 1.3333 px per pt
+        const PAGE_H_PX = Math.round(792 * PX_PER_PT);   // 1056px content per page
+        const totalH = Math.max(iDoc.body.scrollHeight, iDoc.documentElement.scrollHeight);
+
+        // 1) Page breaks at row / header boundaries (never split a row).
+        const bodyTop = iDoc.body.getBoundingClientRect().top;
+        const units = Array.from(iDoc.querySelectorAll(".aDayHeader, .aRow, .aFooter"))
+          .map(elm => {
+            const r = elm.getBoundingClientRect();
+            return { top: r.top - bodyTop, bottom: r.bottom - bodyTop };
+          })
+          .sort((a, b) => a.top - b.top);
+        const pageTops = [0];
+        for (const u of units) {
+          const start = pageTops[pageTops.length - 1];
+          if (u.bottom - start > PAGE_H_PX && u.top > start) pageTops.push(u.top);
+        }
+        const pages = pageTops.map((top, i) => ({
+          top,
+          height: (i + 1 < pageTops.length ? pageTops[i + 1] : totalH) - top
+        }));
+
+        // 2) Render in chunks that each stay within mobile canvas limits, then
+        //    slice each chunk into its page images locally (cheap canvas copy).
+        //    At scale 1.5 a 8000px-tall chunk is ≈1224×12000px ≈ 14.7MP — under
+        //    iOS's ~16.7MP area cap and Android's ~16384px dimension cap.
+        const MAX_CHUNK_PX = 8000;
+        const pageImages = [];
+        let i = 0;
+        while (i < pages.length) {
+          const chunkTop = pages[i].top;
+          let j = i + 1;
+          while (j < pages.length &&
+                 (pages[j].top + pages[j].height - chunkTop) <= MAX_CHUNK_PX) j++;
+          const chunkBottom = pages[j - 1].top + pages[j - 1].height;
+          const chunkCanvas = await h2c(iDoc.body, {
+            scale: SCALE, backgroundColor: "#ffffff", useCORS: true, logging: false,
+            width: W, height: chunkBottom - chunkTop, x: 0, y: chunkTop,
+            windowWidth: W, windowHeight: totalH
+          });
+          for (let k = i; k < j; k++) {
+            const p = pages[k];
+            const sy = Math.round((p.top - chunkTop) * SCALE);
+            const sh = Math.round(p.height * SCALE);
+            const pc = document.createElement("canvas");
+            pc.width = Math.round(W * SCALE);
+            pc.height = sh;
+            pc.getContext("2d").drawImage(chunkCanvas, 0, sy, pc.width, sh, 0, 0, pc.width, sh);
+            pageImages.push({ dataURL: pc.toDataURL("image/jpeg", 0.85), heightPx: p.height });
+            report(pageImages.length, pages.length);
+          }
+          i = j;
+        }
+        cleanup();
+        return assembleMobileAgendaPdf(pageImages, pages, tzNote, linkRect);
+      })
+      .then(resolve)
+      .catch(err => { cleanup(); reject(err); });
+  });
+}
+
+// Builds the final PDF (hosted cover + per-page agenda images) with pdf-lib,
+// mirroring mergeCoverAndAgenda's cover note and clickable-skill-link logic.
+async function assembleMobileAgendaPdf(pageImages, pages, tzNote, linkRect) {
+  await Promise.all([loadScriptOnce(PDFLIB_SRC), loadScriptOnce(FONTKIT_SRC)]);
+  const [coverResp, fontResp] = await Promise.all([fetch(PDF_COVER_URL), fetch(MONTSERRAT_TTF)]);
+  if (!coverResp.ok) throw new Error("Cover fetch failed: " + coverResp.status);
+  const coverBytes = await coverResp.arrayBuffer();
+  const fontBytes  = await fontResp.arrayBuffer();
+
+  const { PDFDocument, PDFName, PDFString, rgb } = window.PDFLib;
+  const doc = await PDFDocument.load(coverBytes);
+  doc.registerFontkit(window.fontkit);
+
+  // Timezone note on the cover, bottom-right (same as the desktop path).
+  const font = await doc.embedFont(fontBytes);
+  const cover = doc.getPage(0);
+  const coverW = cover.getSize().width;
+  const noteSize = PDF_COVER_TZ_SIZE;
+  const textW = font.widthOfTextAtSize(tzNote, noteSize);
+  cover.drawText(tzNote, {
+    x: coverW - PDF_COVER_TZ_MARGIN.right - textW,
+    y: PDF_COVER_TZ_MARGIN.bottom,
+    size: noteSize, font,
+    color: rgb(PDF_COVER_TZ_RGB[0], PDF_COVER_TZ_RGB[1], PDF_COVER_TZ_RGB[2])
+  });
+
+  const PAGE_W_PT = 612, PAGE_H_PT = 792, SCALE = 612 / 816; // px → pt
+  for (const pg of pageImages) {
+    const b64 = pg.dataURL.split(",")[1];
+    const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const jpg = await doc.embedJpg(bytes);
+    const page = doc.addPage([PAGE_W_PT, PAGE_H_PT]);
+    const hPt = Math.min(PAGE_H_PT, pg.heightPx * SCALE);
+    page.drawImage(jpg, { x: 0, y: PAGE_H_PT - hPt, width: PAGE_W_PT, height: hPt });
+  }
+
+  // Clickable "Skill Building Institutes" link on whichever agenda page holds it.
+  if (linkRect && linkRect.width) {
+    let p = 0;
+    for (let idx = 0; idx < pages.length; idx++) {
+      if (linkRect.top >= pages[idx].top &&
+          linkRect.top < pages[idx].top + pages[idx].height) { p = idx; break; }
+    }
+    const yInPage = linkRect.top - pages[p].top;
+    const x1 = linkRect.left * SCALE;
+    const x2 = (linkRect.left + linkRect.width) * SCALE;
+    const yTopPt = yInPage * SCALE;
+    const hPt = linkRect.height * SCALE;
+    const target = doc.getPage(p + 1); // +1 for the cover
+    if (target) {
+      const ph = target.getSize().height;
+      const ctx = doc.context;
+      const annot = ctx.obj({
+        Type: "Annot", Subtype: "Link",
+        Rect: [x1, ph - yTopPt - hPt, x2, ph - yTopPt],
+        Border: [0, 0, 0],
+        A: ctx.obj({ Type: "Action", S: "URI", URI: PDFString.of(PDF_SKILL_LINK_URL) })
+      });
+      const ref = ctx.register(annot);
+      const existing = target.node.Annots();
+      if (existing) existing.push(ref);
+      else target.node.set(PDFName.of("Annots"), ctx.obj([ref]));
+    }
+  }
+
+  return doc.save();
+}
+
 function downloadAgendaPDF() {
   if (pdfInFlight) return;
   pdfInFlight = true;
@@ -2030,8 +2269,17 @@ function downloadAgendaPDF() {
     pdfInFlight = false;
   };
 
-  renderAgendaPagesBytes(selectedZone)
-    .then(({ bytes, linkRect }) => mergeCoverAndAgenda(bytes, tzNote, linkRect))
+  // Mobile/tablet: rasterize page-by-page to dodge the canvas-size limit that
+  // otherwise yields blank pages. Desktop: original single-pass html2pdf path.
+  const onProgress = (done, total) => {
+    if (label) label.textContent = `Preparing PDF… ${Math.round((done / total) * 100)}%`;
+  };
+  const pdfWork = isCanvasConstrained()
+    ? buildMobileAgendaPdfBytes(selectedZone, tzNote, onProgress)
+    : renderAgendaPagesBytes(selectedZone)
+        .then(({ bytes, linkRect }) => mergeCoverAndAgenda(bytes, tzNote, linkRect));
+
+  pdfWork
     .then(mergedBytes => {
       const blob = new Blob([mergedBytes], { type: "application/pdf" });
       const url  = URL.createObjectURL(blob);

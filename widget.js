@@ -64,8 +64,10 @@ for (const [, blocks] of Object.entries(data)) {
   }
 }
 
+let sessionsByBlock = {};
 const sessionMap = {};
-if (typeof sessionsByBlock !== "undefined") {
+
+function buildSessionMap() {
   for (const [blockKey, sessions] of Object.entries(sessionsByBlock)) {
     for (const s of sessions) {
       sessionMap[s.code] = { ...s, blockKey };
@@ -2667,5 +2669,18 @@ if ("MutationObserver" in window) {
 }
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-renderTabs();
+async function init() {
+  const grid = document.getElementById("agendaGrid");
+  if (grid) grid.innerHTML = '<p style="padding:2rem;text-align:center;color:#666;font-family:Montserrat,sans-serif;font-size:0.95rem">Loading agenda…</p>';
+  try {
+    const res = await fetch("/api/sessions-by-block");
+    if (res.ok) sessionsByBlock = await res.json();
+  } catch (e) {
+    console.warn("Failed to load session data:", e);
+  }
+  buildSessionMap();
+  renderTabs();
+}
+
+init();
 

@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/sessions-by-block", "destination": "/api/sessions-by-block.js" }
+  ]
+}

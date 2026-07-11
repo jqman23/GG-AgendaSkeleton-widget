@@ -447,21 +447,6 @@ const sessionsByBlock = {
       ]
     }
   ],
-  "2026-10-07|12:00": [
-    {
-      name: "A thought experience: Imagining a system rooted in the voices and experiences of mothers",
-      code: "ATHO2242",
-      type: "keynote",
-      theme: "Reimagining Child, Youth, and Family Well-Being",
-      endTime: "13:00",
-      tags: ["care-experienced individuals","child/family engagement","advocacy","family integrity","family support","system transformation"],
-      description: "This keynote session will weave together key insights from mothers with lived experience from across the globe in an attempt to imagine generative possibilities for the well-being of mothers, children and families. Inspired by an upcoming book, Voices from the edge: First person voices of mothers who have survived child protection systems, this presentation will juxtapose a risk-based and social model of child protection, bringing attention to key parallels of mothers experiences navigating child protection system from around the world.",
-      speakers: [
-        { name: "Laura Kucenty", title: "Family Support Worker", org: "", bio: "Laura has worked as a family support worker in community-based organizations in downtown Toronto for over thirty years. A mother who has navigated the system herself, Laura brings with her years of front-line experience supporting mothers navigating the child protection system in Ontario, Canada." },
-        { name: "Brooke Richardson", title: "Care scholar and activist", org: "", bio: "Brooke Richardson, PhD, is a care activist, scholar and mother (of 4!) motivated by the belief that good care is foundational to meaningful lives and a democratic society.  Brooke is herself a mother who has navigated the child protection system in Ontario, Canada. and leans on this experience to inform her academic and activism work. She is active in the national and international childcare and child welfare policy reform movements as well as a Research Associate with the Canadian Centre for Policy Alternatives. Her research, teaching and activism work focuses on reconceptualising care and reimagining child welfare systems through a feminist ethics of care lens." }
-      ]
-    }
-  ],
   "2026-10-07|13:15": [
     {
       name: "Concepts and Planning Tools for Authentic Partnership with People with Lived Experience",
@@ -1257,4 +1242,3 @@ const sessionsByBlock = {
     }
   ]
 };
-

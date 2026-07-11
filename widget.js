@@ -1612,7 +1612,10 @@ document.addEventListener("keydown", (ev) => {
 // Blocks whose programming has been scheduled but not yet announced. They are
 // still expandable, but the panel shows a "details coming soon" message instead
 // of session cards.
-const TBD_BLOCKS = { "2026-10-08|15:00": true };
+const TBD_BLOCKS = {
+  "2026-10-07|12:00": true,
+  "2026-10-08|15:00": true
+};
 
 function isTbdBlock(blockKey) {
   return !!TBD_BLOCKS[blockKey];

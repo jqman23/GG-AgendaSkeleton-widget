@@ -114,6 +114,12 @@ const CDN = 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/eve
 // (Skill Institute or otherwise) when their photo/bio needs to be curated.
 // Bios are sourced from the relevant speaker/widget data; photos from Cvent CDN.
 const SPEAKER_OVERRIDE = {
+  'Kevin Campbell': {
+    photo: 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/4f8028ce76df443cbc87d270e0fa4163.jpg'
+  },
+  'Gregory Smith': {
+    photo: 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/7981d8bf37054b68adef8956f30a7cb5.jpg'
+  },
   'Dorothy Roberts': {
     photo: 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/3eaba35523a14ca7b582aeb7bbfb79c4.jpg'
   },

@@ -1,5 +1,12 @@
 import { neon } from '@neondatabase/serverless';
 
+// Curated photo overrides for speakers whose image is not present (or is stale)
+// in the source speaker table. Keys match the API's "First Last" name format.
+const SPEAKER_PHOTO_OVERRIDE = {
+  'Dorothy Roberts': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/3eaba35523a14ca7b582aeb7bbfb79c4.jpg',
+  'Joyce McMillan': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/b6d0e0d14c394dcd83a2a1d6c2c2f8f8.jpg',
+};
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -55,7 +62,9 @@ export default async function handler(req, res) {
           title: sp.title || '',
           org:   sp.org   || '',
           bio:   sp.bio   || '',
-          ...(sp.photo ? { photo: sp.photo } : {}),
+          ...(SPEAKER_PHOTO_OVERRIDE[sp.name] || sp.photo
+            ? { photo: SPEAKER_PHOTO_OVERRIDE[sp.name] || sp.photo }
+            : {}),
         })),
       });
     }

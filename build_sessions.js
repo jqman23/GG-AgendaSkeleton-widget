@@ -106,12 +106,20 @@ const typeMap = {
   'International Exchange': 'intl'
 };
 
-// ── CDN base for skill institute headshots ───────────────────────────────────
+// ── CDN base for curated speaker assets ──────────────────────────────────────
 const CDN = 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/';
 
-// ── Manually curated skill institute speaker overrides ───────────────────────
-// Bios sourced from skillinstitute-standalonewidget; photos from Cvent CDN.
-const SKILL_SPEAKER_OVERRIDE = {
+// ── Manually curated speaker overrides ───────────────────────────────────────
+// Keyed by the normalized Full Name from the speaker CSV. Add any speaker here
+// (Skill Institute or otherwise) when their photo/bio needs to be curated.
+// Bios are sourced from the relevant speaker/widget data; photos from Cvent CDN.
+const SPEAKER_OVERRIDE = {
+  'Dorothy Roberts': {
+    photo: 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/3eaba35523a14ca7b582aeb7bbfb79c4.jpg'
+  },
+  'Joyce McMillan': {
+    photo: 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/b6d0e0d14c394dcd83a2a1d6c2c2f8f8.jpg'
+  },
   'Paul Nixon': {
     photo: CDN + 'c85b4588d3f04f03af1ff97dcf7c5214.png',
     bio: 'International expert with 34+ years in child protection, Family Group Conferences, and leadership; former Chief Social Worker for the Government of New Zealand. Consults with governments, NGOs, and universities across six continents.'
@@ -203,9 +211,9 @@ try {
     if (line.includes('photo:') && line.includes('name:')) {
       const nm = line.match(/name:\s*"([^"]+)"/);
       const ph = line.match(/photo:\s*"([^"]+)"/);
-      if (nm && ph && !SKILL_SPEAKER_OVERRIDE[nm[1]]) {
+      if (nm && ph && !SPEAKER_OVERRIDE[nm[1]]) {
         // Store as fallback for any speaker not already in override
-        SKILL_SPEAKER_OVERRIDE[nm[1]] = { photo: ph[1], bio: null };
+        SPEAKER_OVERRIDE[nm[1]] = { photo: ph[1], bio: null };
       }
     }
   }
@@ -228,12 +236,11 @@ for (let i = 1; i < speakerRows.length; i++) {
   }
 
   const csvBio   = cell(r, SPK.bio).trim();
-  const override = SKILL_SPEAKER_OVERRIDE[fullName] || {};
+  const override = SPEAKER_OVERRIDE[fullName] || {};
 
-  // Curated skill-institute bio wins over the CSV when present (override.bio
-  // non-null); otherwise fall back to the CSV bio. Photos always prefer the
-  // curated override. This keeps skill speakers frozen even though Cvent now
-  // exports its own (longer) bios for them.
+  // A curated bio wins over the CSV when present (override.bio non-null);
+  // otherwise fall back to the CSV bio. Photos always prefer the curated
+  // override. This keeps manually curated speaker data stable across rebuilds.
   const speaker = {
     name:  fullName,
     title: cell(r, SPK.title).trim(),

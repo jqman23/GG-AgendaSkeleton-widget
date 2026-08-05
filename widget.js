@@ -783,7 +783,7 @@ function buildSpeakerIndex(sortBy) {
         if (!entry.title && sp.title) entry.title = sp.title;
         if (!entry.org && sp.org) entry.org = sp.org;
         if (!entry.sessions.find(x => x.code === s.code)) {
-          entry.sessions.push({ code: s.code, name: s.name, blockKey });
+          entry.sessions.push({ code: s.code, name: s.name, type: s.type, blockKey });
         }
       }
     }
@@ -1228,10 +1228,11 @@ function renderSearchResults() {
       : `<span class="srAvatar">${initials}</span>`;
     const meta = [it.title, it.org].filter(Boolean).join(" · ");
     const sub  = it.sessionCount ? `${it.sessionCount} session${it.sessionCount > 1 ? "s" : ""}` : "";
+    const speakerLabel = (it.sessions || []).some(s => String(s.type || "").toLowerCase() === "keynote") ? "Keynoter" : "Speaker";
     return `<button class="searchResult" data-kind="speaker" data-name="${esc(it.name)}">
       ${avatar}
       <span class="srMain">
-        <span class="srTitle">${highlightSearch(it.name, tokens)}<span class="srKind srKind--speaker">Speaker</span></span>
+         <span class="srTitle">${highlightSearch(it.name, tokens)}<span class="srKind srKind--speaker">${speakerLabel}</span></span>
         ${meta ? `<span class="srMeta">${highlightSearch(meta, tokens)}</span>` : ""}
         ${sub ? `<span class="srSub">${sub}</span>` : ""}
       </span>

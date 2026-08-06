@@ -14,6 +14,11 @@ export default async function handler(req, res) {
 
   try {
     const sql  = neon(process.env.DATABASE_URL);
+    // Defensive: the column is normally added by the backend planner's next
+    // CSV sync (lib/agenda-sync-core.js), but that's a separate deploy/
+    // upload this repo doesn't control the timing of — guard here too so
+    // this query can never fail on a missing column regardless of order.
+    await sql`ALTER TABLE sessions ADD COLUMN IF NOT EXISTS display_on_agenda boolean NOT NULL DEFAULT true`;
     const rows = await sql`
       SELECT
         s.session_start,
@@ -42,6 +47,7 @@ export default async function handler(req, res) {
       LEFT JOIN session_speakers ss ON s.session_id = ss.session_id
       LEFT JOIN speakers sp ON ss.speaker_code = sp.speaker_code
       WHERE s.session_start IS NOT NULL AND s.session_start <> ''
+        AND s.display_on_agenda IS NOT FALSE
       GROUP BY s.session_id, s.session_start, s.session_end, s.session_name,
                s.session_code, s.presentation_type, s.category, s.description, s.tags
       ORDER BY s.session_start, s.session_name

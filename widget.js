@@ -840,12 +840,12 @@ function renderSpeakerView() {
     <div class="spControls">
       <div class="spSortGroup">
         <span class="spSortLabel">Last name:</span>
-        <button class="spSortBtn${currentSort === "lastaz" ? " active" : ""}" onclick="setSpeakerSort('lastaz')">A→Z</button>
-        <button class="spSortBtn${currentSort === "lastza" ? " active" : ""}" onclick="setSpeakerSort('lastza')">Z→A</button>
+        <button class="spSortBtn${!speakerGroupByImage && currentSort === "lastaz" ? " active" : ""}" onclick="setSpeakerSort('lastaz')">A→Z</button>
+        <button class="spSortBtn${!speakerGroupByImage && currentSort === "lastza" ? " active" : ""}" onclick="setSpeakerSort('lastza')">Z→A</button>
         <span class="spSortDiv">|</span>
         <span class="spSortLabel">First name:</span>
-        <button class="spSortBtn${currentSort === "firstaz" ? " active" : ""}" onclick="setSpeakerSort('firstaz')">A→Z</button>
-        <button class="spSortBtn${currentSort === "firstza" ? " active" : ""}" onclick="setSpeakerSort('firstza')">Z→A</button>
+        <button class="spSortBtn${!speakerGroupByImage && currentSort === "firstaz" ? " active" : ""}" onclick="setSpeakerSort('firstaz')">A→Z</button>
+        <button class="spSortBtn${!speakerGroupByImage && currentSort === "firstza" ? " active" : ""}" onclick="setSpeakerSort('firstza')">Z→A</button>
       </div>
     </div>
     <div class="spCards">${cards}</div>

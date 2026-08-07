@@ -799,11 +799,21 @@ function buildSpeakerIndex(sortBy) {
   } else {
     speakers.sort((a, b) => a.name.trim().split(" ").pop().toLowerCase().localeCompare(b.name.trim().split(" ").pop().toLowerCase()));
   }
+  // Default view (before the user picks a sort control): last name A→Z, but
+  // with speakers who have a photo grouped first, then those without —
+  // both sub-groups keeping the A→Z order. Choosing any sort control
+  // switches back to plain sorting regardless of photos.
+  if (by === "lastaz" && speakerGroupByImage) {
+    const withPhoto = speakers.filter(sp => sp.photo);
+    const withoutPhoto = speakers.filter(sp => !sp.photo);
+    return [...withPhoto, ...withoutPhoto];
+  }
   return speakers;
 }
 
 let cachedSpeakers = [];
 let currentSort = "lastaz";
+let speakerGroupByImage = true;
 
 function renderSpeakerView() {
   cachedSpeakers = buildSpeakerIndex(currentSort);
@@ -844,6 +854,7 @@ function renderSpeakerView() {
 
 function setSpeakerSort(dir) {
   currentSort = dir;
+  speakerGroupByImage = false;
   renderSpeakerView();
   queueWidgetHeightPost();
 }

@@ -9,6 +9,17 @@ const SPEAKER_PHOTO_OVERRIDE = {
   'Joyce McMillan': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/b6d0e0d14c394dcd83a2a1d6c2c2f8f8.jpg',
 };
 
+// The backend planner's sync currently pulls the raw cell formula for photo
+// URLs instead of the resolved link (e.g. `=HYPERLINK("https://...jpg", "Image")`
+// rather than the plain URL). Extract the real URL out of that formula text so
+// speaker photos still render; if the value is already a plain URL (once the
+// sync is fixed upstream) or anything else unrecognized, this leaves it as-is.
+function resolvePhotoUrl(raw) {
+  if (!raw) return raw;
+  const match = /^=HYPERLINK\(\s*"([^"]+)"/i.exec(raw.trim());
+  return match ? match[1] : raw;
+}
+
 export default async function handler(req, res) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
 
@@ -65,15 +76,16 @@ export default async function handler(req, res) {
         endTime:     row.session_end        || '',
         tags:        row.tags ? row.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         description: row.description        || '',
-        speakers:    (row.speakers || []).map(sp => ({
-          name:  sp.name  || '',
-          title: sp.title || '',
-          org:   sp.org   || '',
-          bio:   sp.bio   || '',
-          ...(SPEAKER_PHOTO_OVERRIDE[sp.name] || sp.photo
-            ? { photo: SPEAKER_PHOTO_OVERRIDE[sp.name] || sp.photo }
-            : {}),
-        })),
+        speakers:    (row.speakers || []).map(sp => {
+          const photo = SPEAKER_PHOTO_OVERRIDE[sp.name] || resolvePhotoUrl(sp.photo);
+          return {
+            name:  sp.name  || '',
+            title: sp.title || '',
+            org:   sp.org   || '',
+            bio:   sp.bio   || '',
+            ...(photo ? { photo } : {}),
+          };
+        }),
       });
     }
 

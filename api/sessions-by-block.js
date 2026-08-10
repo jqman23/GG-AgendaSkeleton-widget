@@ -7,6 +7,8 @@ const SPEAKER_PHOTO_OVERRIDE = {
   'Gregory Smith': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/7981d8bf37054b68adef8956f30a7cb5.jpg',
   'Dorothy Roberts': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/3eaba35523a14ca7b582aeb7bbfb79c4.jpg',
   'Joyce McMillan': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/b6d0e0d14c394dcd83a2a1d6c2c2f8f8.jpg',
+  'Anna Stromberg': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/7c8acaed800f46d0891374256f5d10af.jpg',
+  'Anna Strömberg': 'https://custom.cvent.com/AE944F71438646268B70FF5BF3772347/files/event/e7d15afcf2b14901ab0272ce8a401899/7c8acaed800f46d0891374256f5d10af.jpg',
 };
 
 // The backend planner's sync currently pulls the raw cell formula for photo

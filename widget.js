@@ -198,6 +198,17 @@ function getSessionSub(type) {
   return subs[type] || "";
 }
 
+function getBlockTypes(scheduledTypes, sessions) {
+  const actualTypes = [...new Set(sessions.map(s => String(s.type || "").trim()).filter(Boolean))];
+  if (!actualTypes.length) return scheduledTypes;
+  // Keep the familiar order where it still applies, then include any types
+  // added to the live session data since the schedule was written.
+  return [
+    ...scheduledTypes.filter(type => actualTypes.includes(type)),
+    ...actualTypes.filter(type => !scheduledTypes.includes(type))
+  ];
+}
+
 // ─── PARENT VIEWPORT TRACKING ────────────────────────────────────────────────
 // This widget runs in a cross-origin iframe (Vercel) embedded in Cvent. Because
 // the iframe is scrolling="no" and sized to its full content height, the iframe
@@ -2511,18 +2522,20 @@ function render(tabId) {
 
     const timeLabel = buildTimeLabel(startUtc, endUtc, selectedZone, showDate);
     const tzAbbr    = getTzAbbreviation(selectedZone);
-    const primary   = types[0];
     const blockKey  = `${startDate}|${startTime}`;
-    const hasSessions = typeof sessionsByBlock !== "undefined" && (sessionsByBlock[blockKey] || []).length > 0;
+    const sessions = sessionsByBlock[blockKey] || [];
+    const hasSessions = sessions.length > 0;
+    const blockTypes = getBlockTypes(types, sessions);
+    const primary   = blockTypes[0];
     const tbd         = isTbdBlock(blockKey);
     const expandable  = hasSessions || tbd;
 
-    const typeContent = types.map((t, i) => `
+    const typeContent = blockTypes.map((t, i) => `
       <div class="sessionTypeRow${i > 0 ? " sessionTypeRow--extra" : ""}">
-        <img class="icon" src="${icons[t]}" alt="">
+        ${icons[t] ? `<img class="icon" src="${icons[t]}" alt="">` : ""}
         <div>
-          <div class="sessionType">${getSessionLabel(t)}</div>
-          ${getSessionSub(t) ? `<div class="sessionSub">${getSessionSub(t)}</div>` : ""}
+          <div class="sessionType">${esc(getSessionLabel(t))}</div>
+          ${getSessionSub(t) ? `<div class="sessionSub">${esc(getSessionSub(t))}</div>` : ""}
         </div>
       </div>
     `).join("");
